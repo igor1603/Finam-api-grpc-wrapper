@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" Version="3.35.1" />
+    <PackageReference Include="Grpc.Net.Client" Version="2.80.0" />
+    <PackageReference Include="Grpc.Tools" Version="2.81.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+	<ItemGroup>
+		<!-- 1. Торговые сервисы Финама (генерируем публичные C#-клиенты) -->
+		<Protobuf Include="Protos\grpc\tradeapi\v1\**\*.proto" ProtoRoot="Protos" GrpcServices="Client" Access="Public" />
+
+		<!-- 2. Сервисы-описания верхнего уровня (trade.proto, side.proto), если они нужны как клиенты -->
+		<Protobuf Include="Protos\grpc\tradeapi\v1\*.proto" ProtoRoot="Protos" GrpcServices="Client" Access="Public" />
+
+		<!-- 3. Служебные контракты Google и OpenAPI Gateway (только для импорта типов) -->
+		<Protobuf Include="Protos\google\**\*.proto" ProtoRoot="Protos" GrpcServices="None" />
+		<Protobuf Include="Protos\grpc\gateway\**\*.proto" ProtoRoot="Protos" GrpcServices="None" />
+	</ItemGroup>	
+
+</Project>
