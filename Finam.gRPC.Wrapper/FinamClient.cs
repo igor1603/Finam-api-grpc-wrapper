@@ -1,38 +1,60 @@
 ﻿using Grpc.Core;
-using Grpc.Core.Interceptors; // Критично для работы метода .Intercept()
+using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
 using Grpc.Net.Client.Configuration;
+// Подключаем пространства имен Финама
 using Grpc.Tradeapi.V1.Accounts;
-// Подключаем новые актуальные пространства имен Финама
+using Grpc.Tradeapi.V1.Assets;
 using Grpc.Tradeapi.V1.Auth;
-using Grpc.Tradeapi.V1.Orders; 
+using Grpc.Tradeapi.V1.Corporateactions;
+using Grpc.Tradeapi.V1.Marketdata;
+using Grpc.Tradeapi.V1.Metrics;
+using Grpc.Tradeapi.V1.Orders;
+using Grpc.Tradeapi.V1.Reports;
 
 namespace Finam.gRPC.Wrapper;
 
 /// <summary>
-/// Главный клиент-управляющий для работы с Finam Trade API.
+/// Главный клиент-управляющий для работы с Finam Trade API gRPC.
 /// </summary>
 public class FinamClient : IDisposable
 {
-    private const string TargetUrl = "https://api.finam.ru:443";
-
+    #region Поля
     private readonly GrpcChannel _channel;
     private readonly CallInvoker _invoker;
+    private readonly string _targetUrl;
     private readonly string _secretKey;
-    private readonly string _appId;
-
+    private readonly string _accountId;
     private string? _currentJwtToken;
     private CancellationTokenSource? _streamCts;
+    private Task? _jwtRenewalTask;
+    #endregion
 
-    // Сервисы из актуального репозитория Финама
+    #region Свойства. Клиенты сервисов Финама
+    // Сервисы из репозитория Финама
     public AccountsService.AccountsServiceClient Accounts { get; }
+    public AssetsService.AssetsServiceClient Assets { get; }
+    public AuthService.AuthServiceClient Auth { get; }
+    public CorporateActionsService.CorporateActionsServiceClient CorporateActions { get; }
+    public MarketDataService.MarketDataServiceClient MarketData { get; }
     public OrdersService.OrdersServiceClient Orders { get; }
+    public ReportsService.ReportsServiceClient Reports { get; }
+    public UsageMetricsService.UsageMetricsServiceClient UsageMetrics { get; }
+    #endregion
 
-    // Конструктор
-    public FinamClient(string secretKey, string appId)
+    /// <summary>
+    /// Конструктор класса FinamClient
+    /// </summary>
+    /// <param name="secretKey"> Секретный ключ </param>
+    /// <param name="accountId"> Номер счета </param>
+    /// <param name="targetUrl"> Адрес сервисов Finam API gRPC </param>
+    public FinamClient(string targetUrl, string secretKey, string accountId)
     {
+        #region Проверка входных параметров
         _secretKey = secretKey ?? throw new ArgumentNullException(nameof(secretKey));
-        _appId = appId ?? throw new ArgumentNullException(nameof(appId));
+        _accountId = accountId ?? throw new ArgumentNullException(nameof(accountId));
+        _targetUrl = targetUrl ?? throw new ArgumentNullException(nameof(targetUrl));
+        #endregion
 
         // Настраиваем политику автоматических повторов (Retry Policy) для Unary-запросов
         var methodConfig = new MethodConfig
@@ -49,7 +71,7 @@ public class FinamClient : IDisposable
         };
 
         // Инициализируем сетевой gRPC-канал с нашей конфигурацией
-        _channel = GrpcChannel.ForAddress(TargetUrl, new GrpcChannelOptions
+        _channel = GrpcChannel.ForAddress(_targetUrl, new GrpcChannelOptions
         {
             ServiceConfig = new ServiceConfig { MethodConfigs = { methodConfig } }
         });
@@ -60,35 +82,100 @@ public class FinamClient : IDisposable
 
         // Инициализируем клиенты сервисов
         Accounts = new AccountsService.AccountsServiceClient(_invoker);
+        Assets = new AssetsService.AssetsServiceClient(_invoker);
+        Auth = new AuthService.AuthServiceClient(_invoker);
+        CorporateActions = new CorporateActionsService.CorporateActionsServiceClient(_invoker);
+        MarketData = new MarketDataService.MarketDataServiceClient(_invoker);
         Orders = new OrdersService.OrdersServiceClient(_invoker);
+        Reports = new ReportsService.ReportsServiceClient(_invoker);
+        UsageMetrics = new UsageMetricsService.UsageMetricsServiceClient(_invoker);
     }
 
     /// <summary>
-    /// Запуск клиента: первичная авторизация и старт фонового обновления JWT-токенов.
+    /// Авторизация и старт фонового обновления JWT-токенов.
     /// </summary>
-    public async Task StartAsync()
+    /// <param name="autoAuthorization"> Использовать ли автоматическую авторизацию </param>
+    /// <param name="autoJwtRenewal"> Использовать ли автоматическое включение обновления JWT </param>
+    public async Task StartAsync(bool autoAuthorization, bool autoJwtRenewal)
     {
-        var authClient = new AuthService.AuthServiceClient(_invoker);
+        // Автоматическое обновление JWT невозможно без авторизации
+        if (autoAuthorization)
+        {
+            // Запускаем авторизацию
+            await AauthorizationOnlyAsync();
 
-        Console.WriteLine("[SDK] Запрос первичного JWT-токена у AuthService...");
+            // Прослушивание стрима обновления JWT возможно только после успешной авторизации
+            if (autoJwtRenewal)
+            {
+                /*
+                // Запускаем фоновую задачу прослушивания стрима автоматического обновления JWT
+                _streamCts = new CancellationTokenSource();
+                _ = Task.Run(() => StartJwtRenewalStreamAsync(Auth, _streamCts.Token));
+                Console.WriteLine($"Включено автоматическое обновление JWT.");
+                */
+                await JwtRenewalOnlyAsync();
+            }
+        } else if (autoJwtRenewal)
+        {
+            Console.WriteLine($"[SDK] Для включения автоматического обновления JWT необходимо авторизоваться.");
+        }
+    }
 
-        var authResult = await authClient.AuthAsync(new AuthRequest
+    public async Task AauthorizationOnlyAsync()
+    {
+        var authResult = await Auth.AuthAsync(new AuthRequest
         {
             Secret = _secretKey,
-            SourceAppId = _appId
+            SourceAppId = _accountId
         });
-
         _currentJwtToken = authResult.Token;
-        Console.WriteLine("[SDK] Первичный JWT-токен успешно сохранен в памяти.");
 
-        // Запускаем фоновую задачу прослушивания стрима автоматического обновления JWT
+        if (!string.IsNullOrEmpty(_currentJwtToken))
+        {
+            Console.WriteLine($"[SDK] Получен JWT-токен. {_currentJwtToken}");
+        } else
+        {
+            Console.WriteLine($"[SDK] Авторизация не состоялась. JWT-токен не получен.{_currentJwtToken}");
+        }
+
+    }
+
+    public async Task JwtRenewalOnlyAsync()
+    {
+        if (!string.IsNullOrEmpty(_currentJwtToken))
+        {
+            /*
+            _streamCts = new CancellationTokenSource();
+            await Task.Run(() => StartJwtRenewalStreamAsync(Auth, _streamCts.Token));
+            */
+            await StartJwtRenewalAsync();
+
+            Console.WriteLine($"[SDK] Произведена попытка запуска авто обновления JWT.");
+        } else
+        {
+            Console.WriteLine($"[SDK] JWT не был задан. Автоматическое обровление JWT не включено.");
+        }
+
+    }
+
+    private Task StartJwtRenewalAsync()
+    {
         _streamCts = new CancellationTokenSource();
-        _ = Task.Run(() => StartJwtRenewalStreamAsync(authClient, _streamCts.Token));
+        _jwtRenewalTask = Task.Run(() => StartJwtRenewalStreamAsync(Auth, _streamCts.Token));
+        return Task.CompletedTask; 
+    }
+
+    public async Task StopJwtRenewalAsync()
+    {
+        _streamCts?.Cancel();
+        if (_jwtRenewalTask != null) await _jwtRenewalTask;        
     }
 
     /// <summary>
     /// Фоновый поток, который непрерывно получает новые JWT-токены от сервера.
     /// </summary>
+    /// <param name="authClient"> Клиент сервиса авторизации Финама </param>
+    /// <param name="cancellationToken"> Токен отмены автоматческого обновления JWT </param>
     private async Task StartJwtRenewalStreamAsync(AuthService.AuthServiceClient authClient, CancellationToken cancellationToken)
     {
         // Начальная пауза при потере связи — 2 секунды, максимальная — 60 секунд
@@ -105,21 +192,22 @@ public class FinamClient : IDisposable
                 using var streamingCall = authClient.SubscribeJwtRenewal(new SubscribeJwtRenewalRequest
                 {
                     Secret = _secretKey,
-                    SourceAppId = _appId
+                    SourceAppId = _accountId
                 });
 
                 if (streamingCall?.ResponseStream == null)
                 {
-                    throw new InvalidOperationException("Сервер Финам вернул пустой поток ответов.");
+                    throw new InvalidOperationException("[SDK] Сервер Финам вернул пустой поток ответов.");
                 }
 
                 // Бесконечное чтение токенов из сети
+                Console.WriteLine("[SDK] Фоновое обновление: Ожидание нового JWT-токен сессии.");
                 await foreach (var response in streamingCall.ResponseStream.ReadAllAsync(cancellationToken))
                 {
                     if (response != null && !string.IsNullOrEmpty(response.Token))
                     {
                         _currentJwtToken = response.Token;
-                        Console.WriteLine("[SDK] Фоновое обновление: Успешно применен новый JWT-токен сессии.");
+                        Console.WriteLine($"[SDK] Фоновое обновление: Успешно применен новый JWT-токен сессии.{_currentJwtToken}");
 
                         // Как только получили хотя бы один успешный ответ — сбрасываем паузу переподключения к начальной
                         currentDelaySeconds = baseDelaySeconds;
@@ -153,6 +241,8 @@ public class FinamClient : IDisposable
 
     public void Dispose()
     {
+        Console.WriteLine("[SDK] Зашли в Dispose");
+
         _streamCts?.Cancel();
         _streamCts?.Dispose();
         _channel?.Dispose();
