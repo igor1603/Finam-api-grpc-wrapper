@@ -363,4 +363,4 @@ MigrationBackup/
 FodyWeavers.xsd
 
 # Файл с параметрами соединения
-settings.local.json
+gRPC.Sandbox/settings.local.json
