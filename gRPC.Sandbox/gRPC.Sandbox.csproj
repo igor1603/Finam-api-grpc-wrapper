@@ -15,10 +15,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Finam.gRPC.Wrapper\FinamAPI.gRPC.Wrapper.csproj" />
+    <ProjectReference Include="..\Finam.gRPC.Wrapper\Finam.gRPC.Wrapper.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="settings.local.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="settings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

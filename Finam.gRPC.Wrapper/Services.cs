@@ -17,7 +17,7 @@ namespace Finam.gRPC.Wrapper;
 /// <summary>
 /// Главный клиент-управляющий для работы с Finam Trade API gRPC.
 /// </summary>
-public class FinamClient : IDisposable
+public class Services : IDisposable
 {
     #region Поля
     private readonly GrpcChannel _channel;
@@ -35,6 +35,7 @@ public class FinamClient : IDisposable
     public AccountsService.AccountsServiceClient Accounts { get; }
     public AssetsService.AssetsServiceClient Assets { get; }
     public AuthService.AuthServiceClient Auth { get; }
+    //public gRPCServices.AuthServiceWrapper AuthWrapper { get; }
     public CorporateActionsService.CorporateActionsServiceClient CorporateActions { get; }
     public MarketDataService.MarketDataServiceClient MarketData { get; }
     public OrdersService.OrdersServiceClient Orders { get; }
@@ -48,7 +49,7 @@ public class FinamClient : IDisposable
     /// <param name="secretKey"> Секретный ключ </param>
     /// <param name="accountId"> Номер счета </param>
     /// <param name="targetUrl"> Адрес сервисов Finam API gRPC </param>
-    public FinamClient(string targetUrl, string secretKey, string accountId)
+    public Services(string targetUrl, string secretKey, string accountId)
     {
         #region Проверка входных параметров
         _secretKey = secretKey ?? throw new ArgumentNullException(nameof(secretKey));
@@ -84,6 +85,7 @@ public class FinamClient : IDisposable
         Accounts = new AccountsService.AccountsServiceClient(_invoker);
         Assets = new AssetsService.AssetsServiceClient(_invoker);
         Auth = new AuthService.AuthServiceClient(_invoker);
+        //AuthWrapper = new gRPCServices.AuthServiceWrapper(secretKey, accountId, Auth);
         CorporateActions = new CorporateActionsService.CorporateActionsServiceClient(_invoker);
         MarketData = new MarketDataService.MarketDataServiceClient(_invoker);
         Orders = new OrdersService.OrdersServiceClient(_invoker);

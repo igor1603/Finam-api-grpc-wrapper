@@ -1,7 +1,6 @@
-﻿using Finam.gRPC.Wrapper;
-// Подключаем точное пространство имен для работы со счетами Финама
-using Grpc.Tradeapi.V1.Accounts;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
+
+using Finam.gRPC.Wrapper;
 
 internal class Program
 {
@@ -11,20 +10,12 @@ internal class Program
     /// <param name="args"></param>
     private static async Task Main(string[] args)
     {
-        /*
-        // Вставьте ваш реальный секретный ключ сессии (вида tapi_sk_...)
-        string mytargetUrl = "https://api.finam.ru:443";
-        string mySecretKey = "tapi_sk_3_G8TqeFTD-wXBWwo8wIrw";
-        string myAccountId = "143047";
-        */
-
         try
         {
-            #region Проверка наличия файлов параметров в выходной папке проекта
+            #region 1. Проверка наличия файлов параметров в выходной папке проекта
             var basePath = AppContext.BaseDirectory;
             var settingsPath = Path.Combine(basePath, "settings.json");
             var settingsLocalPath = Path.Combine(basePath, "settings.local.json");
-
             // Проверка наличия обязательного файла
             if (!File.Exists(settingsPath))
             {
@@ -40,14 +31,14 @@ internal class Program
                 return;
             }
             #endregion
-            #region Загрузка входных параметров FinamClient из файлов
+            #region 2. Загрузка входных параметров FinamClient из файлов
             var config = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
             .AddJsonFile("settings.json", optional: false)
             .AddJsonFile("settings.local.json", optional: true)
             .Build();
 
-            var settings = config.GetSection("Connection").Get<Connection>()
+            var settings = config.GetSection("Finam.Api.gRPC").Get<Connection>()
                 ?? throw new Exception("Секция Connection не найдена в конфигурации.");
 
             if (string.IsNullOrEmpty(settings.SecretKey))
@@ -62,36 +53,48 @@ internal class Program
             string myAccountId = settings.AccountId;
             #endregion
 
+            #region 3. Инициализируем наш клиент-обертку
             Console.WriteLine("[Песочница] Начинаем работу. Инициализируем клиента.");
-            // 1. Инициализируем наш клиент-обертку
-            using var client = new FinamClient(
+            using var Services = new ServicesClientsWrappers(
                 targetUrl: mytargetUrl,
                 secretKey: mySecretKey,
                 accountId: myAccountId
             );
-
-            // 2. Параметры StartAsync true - автоматическая авторизация, true - автоматическое фоновое продление токенов
-            await client.StartAsync(
-                autoAuthorization: true,
-                autoJwtRenewal: true
-            );
+            #endregion
+            #region 2. Запускаем авторизацию и автоматическое продление jwt токена
             Console.WriteLine("""
-                [Песочница] Запустили фоновое продление токенов. Для проверки продления ждите 15 минут.
-                Для остановки ожидания нового токена или для продолжения теста - нажмите любую клавишу
+                [Песочница] Заходим в авторизацию. 
                 """);
+            bool autoStartJwtRenewal = true;
+            await Services.AuthService.Auth(autoStartJwtRenewal);
+            if (!autoStartJwtRenewal)
+            {
+                Console.WriteLine("""
+                    [Песочница] Авторизовались.
+                    Заходим в автоматическое продление токен
+                    Если нажать любую клавишу автоматическое продление будет отключно.
+                    """);
+                await Services.AuthService.StartJwtRenewalAsync();
+            }
+            else
+            {
+                Console.WriteLine("""
+                    [Песочница] Авторизовались.
+                    autoStartJwtRenewal = true - автоматически запустили SubscribeJwtRenewal
+                    """);
+            }
+            #endregion
+
+            Console.WriteLine("""[Песочница] Если нажать любую клавишу автоматическое продление будет отключно.""");
+            Console.ReadKey();
+
+            #region 3. Останавливаем автоматическое обновление jwt токена
+            await Services.AuthService.StopJwtRenewalAsync();
+            #endregion
 
             Console.ReadKey();
-            await client.StopJwtRenewalAsync();
-            Console.WriteLine("[Песочница] Остановили ожидание нового токена от Финама. Продолжаем тест");
-
-            // 3. Запрашиваем данные аккаунта
-            Console.WriteLine($"[Песочница] Запустили получение идентификатора торгового счета");
-            var accountRequest = new GetAccountRequest(){ AccountId = myAccountId };
-            var accountResponse = await client.Accounts.GetAccountAsync(accountRequest);
-            Console.WriteLine($"[Песочница] Получили идентификатор торгового счета: {accountResponse.AccountId}");
-
-            client.Dispose();
         }
+        #region catches
         catch (FileNotFoundException fileEx)
         {
             Console.WriteLine($"Ошибка файла: {fileEx.Message}");
@@ -107,5 +110,6 @@ internal class Program
 
         Console.WriteLine("[Песочница] Завершили работу. Нажмите любую клавишу для выхода.");
         Console.ReadKey();
+        #endregion
     }
 }
