@@ -85,15 +85,15 @@ internal class Program
             }
             #endregion
 
-            Console.WriteLine("""[Песочница] Если нажать любую клавишу автоматическое продление будет отключно.""");
+            //Console.WriteLine("""[Песочница] Если нажать любую клавишу автоматическое продление будет отключно.""");
+            //Console.WriteLine("""[Песочница] Если нажать любую клавишу, то перейдем к запуску GetAccount.""");
             Console.ReadKey();
-
-            /*
+            
             Console.WriteLine($"[Песочница] Запустили получение идентификатора торгового счета");
             var accountRequest = new GetAccountRequest() { AccountId = myAccountId };
-            var accountResponse = await Services.AuthService.Accounts.GetAccountAsync(accountRequest);
+            var accountResponse = await Services.AccountsService.GetAccountAsync(accountRequest);
             Console.WriteLine($"[Песочница] Получили идентификатор торгового счета: {accountResponse.AccountId}");
-            */
+            
 
             #region 3. Останавливаем автоматическое обновление jwt токена
             await Services.AuthService.StopJwtRenewalAsync();

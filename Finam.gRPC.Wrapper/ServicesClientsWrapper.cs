@@ -1,7 +1,16 @@
 ﻿using Grpc.Core;
+using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
 using Grpc.Net.Client.Configuration;
-using Grpc.Core.Interceptors;
+
+using Grpc.Tradeapi.V1.Auth;
+using Grpc.Tradeapi.V1.Accounts;
+using Grpc.Tradeapi.V1.Orders;
+using Grpc.Tradeapi.V1.Marketdata;
+using Grpc.Tradeapi.V1.Assets;
+using Grpc.Tradeapi.V1.Metrics;
+using Grpc.Tradeapi.V1.Reports;
+using Grpc.Tradeapi.V1.Corporateactions;
 
 using Finam.gRPC.Wrapper.ServicesWrappers;
 
@@ -18,7 +27,10 @@ public class ServicesClients_Wrappers : IDisposable
     public string? _currentJwtToken = string.Empty;
     #endregion
 
+    #region Публичные поля сервисов Финама
     public Auth_ServiceClient_Wrapper AuthService;
+    public AccountsService.AccountsServiceClient AccountsService; 
+    #endregion
 
     public ServicesClients_Wrappers(string targetUrl, string secretKey, string accountId)
     {
@@ -53,8 +65,12 @@ public class ServicesClients_Wrappers : IDisposable
         #region Связываем канал с универсальным перехватчиком
         var interceptor = new FinamAuthInterceptor(() => _currentJwtToken);
         _invoker = _channel.Intercept(interceptor);
+        #endregion
 
-        AuthService = new Auth_ServiceClient_Wrapper(secretKey, accountId, _invoker);
+        #region Инициализируем сервисы
+        AuthService = new Auth_ServiceClient_Wrapper(secretKey, accountId, _invoker, (token) => _currentJwtToken = token);
+
+        AccountsService = new AccountsService.AccountsServiceClient(_invoker); 
         #endregion
     }
     public void Dispose()

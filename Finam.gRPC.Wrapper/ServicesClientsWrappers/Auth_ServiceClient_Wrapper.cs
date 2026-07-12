@@ -1,7 +1,5 @@
 ﻿using Grpc.Core;
 using Grpc.Tradeapi.V1.Auth;
-using System.Threading.Channels;
-//using System.Threading;
 
 namespace Finam.gRPC.Wrapper.ServicesWrappers;
 
@@ -14,6 +12,7 @@ public class Auth_ServiceClient_Wrapper : AuthService.AuthServiceClient, IDispos
 
     private CancellationTokenSource?    _streamCts;
     private CancellationToken           _cancellationToken;
+    private readonly Action<string>     _setJwtToken;
 
     private readonly AuthRequest        _authRequest;
     private SubscribeJwtRenewalRequest  _subscribeJwtRenewalRequest;
@@ -28,7 +27,7 @@ public class Auth_ServiceClient_Wrapper : AuthService.AuthServiceClient, IDispos
     /// <param name="accountId"> Номер счета без префикса КлФ- только цифры</param>
     /// <param name="_invoker"> CallInvoker канала</param>
     /// <exception cref="ArgumentNullException">Генерируется, когда параметры имеют значение null. </exception>
-    public Auth_ServiceClient_Wrapper(string secretKey, string accountId, CallInvoker _invoker) : base(_invoker)
+    public Auth_ServiceClient_Wrapper(string secretKey, string accountId, CallInvoker _invoker, Action<string> setJwtToken) : base(_invoker)
     {
         _secretKey = secretKey ?? throw new ArgumentNullException(nameof(secretKey));
         _accountId = accountId ?? throw new ArgumentNullException(nameof(accountId));
@@ -36,6 +35,7 @@ public class Auth_ServiceClient_Wrapper : AuthService.AuthServiceClient, IDispos
         _subscribeJwtRenewalRequest = new SubscribeJwtRenewalRequest { Secret = _secretKey, SourceAppId = _secretKey };
         _streamCts = new CancellationTokenSource();
         _cancellationToken = _streamCts.Token;
+        _setJwtToken = setJwtToken;
     }
 
     /// <summary>
@@ -49,7 +49,9 @@ public class Auth_ServiceClient_Wrapper : AuthService.AuthServiceClient, IDispos
     {
         var authResponse = await AuthAsync(_authRequest);
         _currentJwtToken = authResponse.Token;
-        Console.WriteLine($"[SDK] Прошли авторизацию. Получили jwt токен: {authResponse.Token}");
+#if DEBUG
+        Console.WriteLine($"[Auth] Прошли авторизацию. Получили jwt токен: {authResponse.Token}"); 
+#endif
         if (autoStartJwtRenewal) await StartJwtRenewalAsync();
         return authResponse.Token;
     }
@@ -80,8 +82,9 @@ public class Auth_ServiceClient_Wrapper : AuthService.AuthServiceClient, IDispos
         {
             try
             {
-                Console.WriteLine("[SDK] Открытие стрима автоматического продления JWT...");
-
+#if DEBUG
+                Console.WriteLine("[Auth] Открытие стрима автоматического продления JWT..."); 
+#endif
                 using var streamingCall = SubscribeJwtRenewal(_subscribeJwtRenewalRequest);
 
                 if (streamingCall?.ResponseStream == null)
@@ -90,14 +93,19 @@ public class Auth_ServiceClient_Wrapper : AuthService.AuthServiceClient, IDispos
                 }
 
                 // Бесконечное чтение токенов из сети
-                Console.WriteLine("[SDK] Фоновое обновление: Ожидание нового JWT-токен сессии.");
+#if DEBUG
+                Console.WriteLine("[Auth] Фоновое обновление: Ожидание нового JWT-токен сессии."); 
+#endif
                 await foreach (var response in streamingCall.ResponseStream.ReadAllAsync(_cancellationToken))
                 {
                     if (response != null && !string.IsNullOrEmpty(response.Token))
                     {
                         _currentJwtToken = response.Token;
-                        Console.WriteLine($"[SDK] Фоновое обновление: Успешно применен новый JWT-токен сессии.{_currentJwtToken}");
-
+                        _setJwtToken(_currentJwtToken);
+#if DEBUG
+                        Console.WriteLine($"[Auth] Фоновое обновление: Успешно применен новый JWT-токен сессии.{_currentJwtToken}");
+                        Console.WriteLine($"[из Auth в Песочницу] Для продолжения - нажать любую клавишу");
+#endif
                         // Как только получили хотя бы один успешный ответ — сбрасываем паузу переподключения к начальной
                         currentDelaySeconds = baseDelaySeconds;
                     }
@@ -105,23 +113,30 @@ public class Auth_ServiceClient_Wrapper : AuthService.AuthServiceClient, IDispos
             }
             catch (RpcException ex) when (ex.StatusCode == StatusCode.Cancelled)
             {
-                Console.WriteLine("[SDK] Стрим обновления JWT принудительно остановлен пользователем (Dispose).");
+#if DEBUG
+                Console.WriteLine("[Auth] Стрим обновления JWT принудительно остановлен пользователем (Dispose)."); 
+#endif
                 break;
             }
             catch (RpcException rpcEx)
             {
                 // Обрабатываем специфичные сетевые ошибки gRPC (брокер разорвал связь, клиринг и т.д.)
-                Console.WriteLine($"[SDK] Сетевая ошибка gRPC в стриме обновлений (Код: {rpcEx.StatusCode}): {rpcEx.Status.Detail}");
-
+#if DEBUG
+                Console.WriteLine($"[Auth] Сетевая ошибка gRPC в стриме обновлений (Код: {rpcEx.StatusCode}): {rpcEx.Status.Detail}");
+#endif
                 // Рассчитываем следующую паузу по экспоненте
-                Console.WriteLine($"[SDK] Ожидание перед повторным подключением: {currentDelaySeconds} сек...");
+#if DEBUG
+                Console.WriteLine($"[Auth] Ожидание перед повторным подключением: {currentDelaySeconds} сек...");
+#endif
                 await Task.Delay(TimeSpan.FromSeconds(currentDelaySeconds), _cancellationToken);
                 currentDelaySeconds = Math.Min(currentDelaySeconds * 2, maxDelaySeconds);
             }
             catch (Exception ex)
             {
                 // Общие системные ошибки
-                Console.WriteLine($"[SDK] Непредвиденная ошибка в стриме обновлений: {ex.Message}");
+#if DEBUG
+                Console.WriteLine($"[Auth] Непредвиденная ошибка в стриме обновлений: {ex.Message}"); 
+#endif
                 await Task.Delay(TimeSpan.FromSeconds(currentDelaySeconds), _cancellationToken);
                 currentDelaySeconds = Math.Min(currentDelaySeconds * 2, maxDelaySeconds);
             }

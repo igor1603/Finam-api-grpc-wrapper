@@ -66,6 +66,7 @@ public class FinamAuthInterceptor : Interceptor
         }
 
         string? currentToken = _getJwtTokenFunc();
+        Console.WriteLine($"[Interceptor] Считали jwt токен из ServicesClients_Wrappers {currentToken}");
 
         if (string.IsNullOrEmpty(currentToken))
         {
