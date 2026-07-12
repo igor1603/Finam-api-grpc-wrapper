@@ -1,6 +1,6 @@
-﻿using Microsoft.Extensions.Configuration;
-
-using Finam.gRPC.Wrapper;
+﻿using Finam.gRPC.Wrapper;
+using Grpc.Tradeapi.V1.Accounts;
+using Microsoft.Extensions.Configuration;
 
 internal class Program
 {
@@ -55,7 +55,7 @@ internal class Program
 
             #region 3. Инициализируем наш клиент-обертку
             Console.WriteLine("[Песочница] Начинаем работу. Инициализируем клиента.");
-            using var Services = new ServicesClientsWrappers(
+            using var Services = new ServicesClients_Wrappers(
                 targetUrl: mytargetUrl,
                 secretKey: mySecretKey,
                 accountId: myAccountId
@@ -87,6 +87,13 @@ internal class Program
 
             Console.WriteLine("""[Песочница] Если нажать любую клавишу автоматическое продление будет отключно.""");
             Console.ReadKey();
+
+            /*
+            Console.WriteLine($"[Песочница] Запустили получение идентификатора торгового счета");
+            var accountRequest = new GetAccountRequest() { AccountId = myAccountId };
+            var accountResponse = await Services.AuthService.Accounts.GetAccountAsync(accountRequest);
+            Console.WriteLine($"[Песочница] Получили идентификатор торгового счета: {accountResponse.AccountId}");
+            */
 
             #region 3. Останавливаем автоматическое обновление jwt токена
             await Services.AuthService.StopJwtRenewalAsync();

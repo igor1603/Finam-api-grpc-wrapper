@@ -1,10 +1,11 @@
 ﻿using Grpc.Core;
 using Grpc.Tradeapi.V1.Auth;
-using System.Threading;
+using System.Threading.Channels;
+//using System.Threading;
 
 namespace Finam.gRPC.Wrapper.ServicesWrappers;
 
-public class Auth_ServiceClient_Wrapper : AuthService.AuthServiceClient
+public class Auth_ServiceClient_Wrapper : AuthService.AuthServiceClient, IDisposable
 {
     #region Поля
     private readonly string             _secretKey;
@@ -134,7 +135,52 @@ public class Auth_ServiceClient_Wrapper : AuthService.AuthServiceClient
     public async Task StopJwtRenewalAsync()
     {
         _streamCts?.Cancel();
-        if (_jwtRenewalTask != null) await _jwtRenewalTask;
+        if (_jwtRenewalTask != null) await _jwtRenewalTask.ConfigureAwait(false);
+
+        _streamCts?.Dispose();
+        _streamCts = null;
+        _jwtRenewalTask = null;
     }
 
+    //public async Task StopJwtRenewalAsync()
+    //{
+    //    if (_streamCts != null)
+    //    {
+    //        // 1. Сигнализируем об отмене
+    //        _streamCts.Cancel();
+
+    //        // 2. Ждем завершения задачи чтения стрима
+    //        // Это гарантирует, что стрим полностью закрыт и ресурсы освобождены
+    //        if (_jwtRenewalTask != null)
+    //        {
+    //            try
+    //            {
+    //                await _jwtRenewalTask.ConfigureAwait(false);
+    //            }
+    //            catch (OperationCanceledException)
+    //            {
+    //                // Игнорируем, так как мы сами инициировали отмену
+    //            }
+    //            catch (RpcException ex) when (ex.StatusCode == StatusCode.Cancelled)
+    //            {
+    //                // Игнорируем штатную отмену gRPC
+    //            }
+    //        }
+
+    //        // 3. Очищаем ресурсы
+    //        _streamCts.Dispose();
+    //        _streamCts = null;
+    //        _jwtRenewalTask = null;
+    //    }
+    //}
+
+    public void Dispose()
+    {
+        //Console.WriteLine("[SDK] Зашли в Dispose");
+
+        _streamCts?.Cancel();
+        _streamCts?.Dispose();
+        //_channel.ShutdownAsync();
+        //_channel?.Dispose();
+    }
 }

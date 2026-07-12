@@ -7,22 +7,20 @@ using Finam.gRPC.Wrapper.ServicesWrappers;
 
 namespace Finam.gRPC.Wrapper; 
 
-public class ServicesClientsWrappers : IDisposable
+public class ServicesClients_Wrappers : IDisposable
 {
     #region Поля
     private readonly GrpcChannel _channel;
     private readonly CallInvoker _invoker;
-    private readonly string _targetUrl;
-    private readonly string _secretKey;
-    private readonly string _accountId;
-    private string? _currentJwtToken;
-    private CancellationTokenSource? _streamCts;
-    private Task? _jwtRenewalTask;
+    private readonly string _targetUrl = string.Empty;
+    private readonly string _secretKey = string.Empty;
+    private readonly string _accountId = string.Empty;
+    public string? _currentJwtToken = string.Empty;
     #endregion
 
     public Auth_ServiceClient_Wrapper AuthService;
 
-    public ServicesClientsWrappers(string targetUrl, string secretKey, string accountId)
+    public ServicesClients_Wrappers(string targetUrl, string secretKey, string accountId)
     {
         #region Проверка входных параметров
         _secretKey = secretKey ?? throw new ArgumentNullException(nameof(secretKey));
@@ -63,8 +61,8 @@ public class ServicesClientsWrappers : IDisposable
     {
         //Console.WriteLine("[SDK] Зашли в Dispose");
 
-        _streamCts?.Cancel();
-        _streamCts?.Dispose();
+        //_streamCts?.Cancel();
+        //_streamCts?.Dispose();
         _channel.ShutdownAsync();
         _channel?.Dispose();
     }
