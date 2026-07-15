@@ -63,8 +63,11 @@ public class ServicesClients_Wrappers : IDisposable
         #endregion
 
         #region Связываем канал с универсальным перехватчиком
-        var interceptor = new FinamAuthInterceptor(() => _currentJwtToken);
-        _invoker = _channel.Intercept(interceptor);
+        var logInterceptor = new LoggingInterceptor();
+        var exceptionHandlingInterceptor = new ExceptionHandlingInterceptor();
+        var authInterceptor = new AuthInterceptor(() => _currentJwtToken);
+
+        _invoker = _channel.Intercept(exceptionHandlingInterceptor).Intercept(logInterceptor).Intercept(authInterceptor);
         #endregion
 
         #region Инициализируем сервисы

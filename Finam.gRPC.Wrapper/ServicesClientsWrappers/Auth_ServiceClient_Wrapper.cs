@@ -26,6 +26,7 @@ public class Auth_ServiceClient_Wrapper : AuthService.AuthServiceClient, IDispos
     /// <param name="secretKey"> Секретный ключ. Генерируется на сайте Финам API https://api.finam.ru/tokens/</param>
     /// <param name="accountId"> Номер счета без префикса КлФ- только цифры</param>
     /// <param name="_invoker"> CallInvoker канала</param>
+    /// <param name="setJwtToken"> Делегат из ServicesClients_Wrappers, обновляющий jwt токен </param>
     /// <exception cref="ArgumentNullException">Генерируется, когда параметры имеют значение null. </exception>
     public Auth_ServiceClient_Wrapper(string secretKey, string accountId, CallInvoker _invoker, Action<string> setJwtToken) : base(_invoker)
     {
@@ -43,21 +44,27 @@ public class Auth_ServiceClient_Wrapper : AuthService.AuthServiceClient, IDispos
     /// 2. Если autoStartJwtRenewal = true, то вызывает StartJwtRenewalAsync - 
     /// стартовую процедуру отправления запроса на включение автоматического обновления jwt токена. 
     /// </summary>
-    /// <param name="autoStartJwtRenewal"> Посылать ли запрос на автоматическое обновление jwt токена. </param>
+    /// <param name="autoStartJwtRenewal"> Тип bool. Посылать ли запрос на автоматическое обновление jwt токена. </param>
     /// <returns> jwt токен </returns>
     public async Task<string> Auth(bool autoStartJwtRenewal)
     {
         var authResponse = await AuthAsync(_authRequest);
         _currentJwtToken = authResponse.Token;
 #if DEBUG
-        Console.WriteLine($"[Auth] Прошли авторизацию. Получили jwt токен: {authResponse.Token}"); 
+            Console.WriteLine($"[Auth] Прошли авторизацию. Получили jwt токен: {authResponse.Token}"); 
 #endif
-        if (autoStartJwtRenewal) await StartJwtRenewalAsync();
+        if (autoStartJwtRenewal)
+        { 
+#if DEBUG
+            Console.WriteLine($"[Auth] Запускаем автоматическое продление jwt токена"); 
+#endif
+            await StartJwtRenewalAsync();
+        }
         return authResponse.Token;
     }
 
     /// <summary>
-    /// Посылает запрос на включение автоматического обновления jwt токена.
+    /// Создает задачу в новом потоке, в которой запускает метод включения автоматического обновления jwt токена - SubscribeJwtRenewal.
     /// </summary>
     /// <returns> Task.CompletedTask - задача, которая уже была успешно выполнена. </returns>
     public Task StartJwtRenewalAsync()

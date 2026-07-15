@@ -6,11 +6,12 @@ namespace Finam.gRPC.Wrapper;
 /// <summary>
 /// Универсальный перехватчик gRPC-запросов для Finam Trade API.
 /// </summary>
-public class FinamAuthInterceptor : Interceptor
+/// <param name="_getJwtTokenFunc"> Делегат, получающий jwt токен </param>
+public class AuthInterceptor : Interceptor
 {
     private readonly Func<string?> _getJwtTokenFunc;
 
-    public FinamAuthInterceptor(Func<string?> getJwtTokenFunc)
+    public AuthInterceptor(Func<string?> getJwtTokenFunc)
     {
         _getJwtTokenFunc = getJwtTokenFunc ?? throw new ArgumentNullException(nameof(getJwtTokenFunc));
     }
