@@ -25,10 +25,6 @@
 		<!-- 3. Служебные контракты Google и OpenAPI Gateway (только для импорта типов) -->
 		<Protobuf Include="Protos\google\**\*.proto" ProtoRoot="Protos" GrpcServices="None" />
 		<Protobuf Include="Protos\grpc\gateway\**\*.proto" ProtoRoot="Protos" GrpcServices="None" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <Compile Remove="ServicesClientsWrappers\AuthServiceWrapper.cs" />
 	</ItemGroup>	
 
 </Project>
