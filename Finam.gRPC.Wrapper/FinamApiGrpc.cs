@@ -12,11 +12,11 @@ using Grpc.Tradeapi.V1.Metrics;
 using Grpc.Tradeapi.V1.Reports;
 using Grpc.Tradeapi.V1.Corporateactions;
 
-using Finam.gRPC.Wrapper.ServicesWrappers;
+using FinamApiGrpc.ServicesClients;
 
-namespace Finam.gRPC.Wrapper; 
+namespace FinamApiGrpc; 
 
-public class ServicesClients_Wrappers : IDisposable
+public class FinamApiGrpc : IDisposable
 {
     #region Поля
     private readonly GrpcChannel _channel;
@@ -28,11 +28,11 @@ public class ServicesClients_Wrappers : IDisposable
     #endregion
 
     #region Публичные поля сервисов Финама
-    public Auth_ServiceClient_Wrapper AuthService;
+    public AuthClient AuthService;
     public AccountsService.AccountsServiceClient AccountsService; 
     #endregion
 
-    public ServicesClients_Wrappers(string targetUrl, string secretKey, string accountId)
+    public FinamApiGrpc(string targetUrl, string secretKey, string accountId)
     {
         #region Проверка входных параметров
         _secretKey = secretKey ?? throw new ArgumentNullException(nameof(secretKey));
@@ -71,11 +71,12 @@ public class ServicesClients_Wrappers : IDisposable
         #endregion
 
         #region Инициализируем сервисы
-        AuthService = new Auth_ServiceClient_Wrapper(secretKey, accountId, _invoker, (token) => _currentJwtToken = token);
+        AuthService = new AuthClient(secretKey, accountId, _invoker, (token) => _currentJwtToken = token);
 
         AccountsService = new AccountsService.AccountsServiceClient(_invoker); 
         #endregion
     }
+
     public void Dispose()
     {
         //Console.WriteLine("[SDK] Зашли в Dispose");

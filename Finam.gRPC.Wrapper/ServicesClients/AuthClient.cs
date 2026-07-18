@@ -1,9 +1,10 @@
 ﻿using Grpc.Core;
 using Grpc.Tradeapi.V1.Auth;
+using Auth = Grpc.Tradeapi.V1.Auth;
 
-namespace Finam.gRPC.Wrapper.ServicesWrappers;
+namespace FinamApiGrpc.ServicesClients;
 
-public class Auth_ServiceClient_Wrapper : AuthService.AuthServiceClient, IDisposable
+public class AuthClient : AuthService.AuthServiceClient, IDisposable
 {
     #region Поля
     private readonly string             _secretKey;
@@ -28,7 +29,7 @@ public class Auth_ServiceClient_Wrapper : AuthService.AuthServiceClient, IDispos
     /// <param name="_invoker"> CallInvoker канала</param>
     /// <param name="setJwtToken"> Делегат из ServicesClients_Wrappers, обновляющий jwt токен </param>
     /// <exception cref="ArgumentNullException">Генерируется, когда параметры имеют значение null. </exception>
-    public Auth_ServiceClient_Wrapper(string secretKey, string accountId, CallInvoker _invoker, Action<string> setJwtToken) : base(_invoker)
+    public AuthClient(string secretKey, string accountId, CallInvoker _invoker, Action<string> setJwtToken) : base(_invoker)
     {
         _secretKey = secretKey ?? throw new ArgumentNullException(nameof(secretKey));
         _accountId = accountId ?? throw new ArgumentNullException(nameof(accountId));
@@ -164,6 +165,16 @@ public class Auth_ServiceClient_Wrapper : AuthService.AuthServiceClient, IDispos
         _jwtRenewalTask = null;
     }
 
+    public void Dispose()
+    {
+        //Console.WriteLine("[SDK] Зашли в Dispose");
+
+        _streamCts?.Cancel();
+        _streamCts?.Dispose();
+        //_channel.ShutdownAsync();
+        //_channel?.Dispose();
+    }
+
     //public async Task StopJwtRenewalAsync()
     //{
     //    if (_streamCts != null)
@@ -196,13 +207,4 @@ public class Auth_ServiceClient_Wrapper : AuthService.AuthServiceClient, IDispos
     //    }
     //}
 
-    public void Dispose()
-    {
-        //Console.WriteLine("[SDK] Зашли в Dispose");
-
-        _streamCts?.Cancel();
-        _streamCts?.Dispose();
-        //_channel.ShutdownAsync();
-        //_channel?.Dispose();
-    }
 }

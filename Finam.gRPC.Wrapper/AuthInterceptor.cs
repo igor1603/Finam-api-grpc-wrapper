@@ -1,8 +1,6 @@
 ﻿using Grpc.Core;
 using Grpc.Core.Interceptors;
 
-namespace Finam.gRPC.Wrapper;
-
 /// <summary>
 /// Универсальный перехватчик gRPC-запросов для Finam Trade API.
 /// </summary>

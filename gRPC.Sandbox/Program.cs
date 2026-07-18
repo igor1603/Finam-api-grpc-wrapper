@@ -1,6 +1,8 @@
-﻿using Finam.gRPC.Wrapper;
+﻿using Microsoft.Extensions.Configuration;
+
 using Grpc.Tradeapi.V1.Accounts;
-using Microsoft.Extensions.Configuration;
+
+using FinamApiGrpc; 
 
 internal class Program
 {
@@ -55,7 +57,7 @@ internal class Program
 
             #region 3. Инициализируем наш клиент-обертку
             Console.WriteLine("[Песочница] Начинаем работу. Инициализируем клиента.");
-            using var Services = new ServicesClients_Wrappers(
+            using var Services = new FinamApiGrpc.FinamApiGrpc(
                 targetUrl: mytargetUrl,
                 secretKey: mySecretKey,
                 accountId: myAccountId
