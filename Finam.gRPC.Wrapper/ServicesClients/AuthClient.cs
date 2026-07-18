@@ -4,7 +4,7 @@ using Auth = Grpc.Tradeapi.V1.Auth;
 
 namespace FinamApiGrpc.ServicesClients;
 
-public class AuthClient : AuthService.AuthServiceClient, IDisposable
+public class AuthClient : Auth.AuthService.AuthServiceClient, IDisposable
 {
     #region Поля
     private readonly string             _secretKey;
@@ -47,31 +47,100 @@ public class AuthClient : AuthService.AuthServiceClient, IDisposable
     /// </summary>
     /// <param name="autoStartJwtRenewal"> Тип bool. Посылать ли запрос на автоматическое обновление jwt токена. </param>
     /// <returns> jwt токен </returns>
-    public async Task<string> Auth(bool autoStartJwtRenewal)
+    public async Task<string> Auth()
     {
         var authResponse = await AuthAsync(_authRequest);
         _currentJwtToken = authResponse.Token;
 #if DEBUG
-            Console.WriteLine($"[Auth] Прошли авторизацию. Получили jwt токен: {authResponse.Token}"); 
+        Console.WriteLine($"[Auth] Прошли авторизацию");
 #endif
+        /*
         if (autoStartJwtRenewal)
-        { 
+        {
 #if DEBUG
-            Console.WriteLine($"[Auth] Запускаем автоматическое продление jwt токена"); 
+            Console.WriteLine($"[Auth] Запускаем автоматическое продление jwt токена");
 #endif
-            await StartJwtRenewalAsync();
+            await SubscribeJwtRenewal();
         }
         return authResponse.Token;
+        */
+        return _currentJwtToken;
+    }
+
+    public Task<TokenDetailsResponse> TokenDetails()
+    {
+        return StartTokenDetails();
+    }
+
+    public async Task<TokenDetailsResponse> StartTokenDetails()
+    {
+#if DEBUG
+        Console.WriteLine($"[Auth] Запускаем получение деталей токена");
+#endif
+        // Проверяем, есть ли вообще токен в памяти
+        if (string.IsNullOrEmpty(_currentJwtToken))
+        {
+            throw new InvalidOperationException(
+                "Невозможно запросить детали токена: локальный JWT-токен пуст или еще не инициализирован.");
+        }
+
+        // 1. Формируем Protobuf запрос
+        var request = new TokenDetailsRequest{ Token = _currentJwtToken };
+
+        // 2. Вызываем базовый асинхронный gRPC-метод
+        TokenDetailsResponse tokenDetailsResponse = await TokenDetailsAsync(request);
+
+        // 3. Возвращаем полученный от Финама Protobuf-объект наружу пользователю
+#if DEBUG
+        Console.WriteLine($"[Auth] Получили детали jwt токена");
+#endif
+        return tokenDetailsResponse;
     }
 
     /// <summary>
     /// Создает задачу в новом потоке, в которой запускает метод включения автоматического обновления jwt токена - SubscribeJwtRenewal.
     /// </summary>
     /// <returns> Task.CompletedTask - задача, которая уже была успешно выполнена. </returns>
-    public Task StartJwtRenewalAsync()
+    public Task SubscribeJwtRenewal()
     {
-        _jwtRenewalTask = Task.Run(() => SubscribeJwtRenewal());
+        if ( _jwtRenewalTask == null ) {
+            _jwtRenewalTask = Task.Run(() => SrartSubscribeJwtRenewal());
+        } else
+        {
+#if true
+            Console.WriteLine($"[Auth] Автоматическое продление jwt токена уже работает"); 
+#endif
+        }
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Отменяет процесс обновления JWT и ожидает завершения задачи обновления, если она выполняется.
+    /// </summary>
+    /// <returns> Задача, представляющая собой асинхронную операцию.</returns>
+    public async Task UnsubscribeJwtRenewal()
+    {
+        _streamCts?.Cancel();
+        if (_jwtRenewalTask != null) await _jwtRenewalTask.ConfigureAwait(false);
+
+        _streamCts?.Dispose();
+        _streamCts = null;
+        _jwtRenewalTask = null;
+    }
+
+    /// <summary>
+    /// Освобождает ресурсы стрима.
+    /// </summary>
+    /// <remarks>
+    /// Вызовите, когда экземпляр больше не нужен, чтобы отменить текущие операции и освободить 
+    /// ресурсы
+    /// </remarks>
+    public void Dispose()
+    {
+        //Console.WriteLine("[SDK] Зашли в Dispose");
+
+        _streamCts?.Cancel();
+        _streamCts?.Dispose();
     }
 
     /// <summary>
@@ -80,7 +149,7 @@ public class AuthClient : AuthService.AuthServiceClient, IDisposable
     /// </summary>
     /// <returns>Задача, представляющая собой асинхронную операцию подписки.</returns>
     /// <exception cref="InvalidOperationException">Генерируется, когда сервер возвращает пустой поток ответа.</exception>
-    public async Task SubscribeJwtRenewal()
+    private async Task SrartSubscribeJwtRenewal()
     {
         int baseDelaySeconds = 2;
         int maxDelaySeconds = 60;
@@ -112,7 +181,6 @@ public class AuthClient : AuthService.AuthServiceClient, IDisposable
                         _setJwtToken(_currentJwtToken);
 #if DEBUG
                         Console.WriteLine($"[Auth] Фоновое обновление: Успешно применен новый JWT-токен сессии.{_currentJwtToken}");
-                        Console.WriteLine($"[из Auth в Песочницу] Для продолжения - нажать любую клавишу");
 #endif
                         // Как только получили хотя бы один успешный ответ — сбрасываем паузу переподключения к начальной
                         currentDelaySeconds = baseDelaySeconds;
@@ -150,61 +218,4 @@ public class AuthClient : AuthService.AuthServiceClient, IDisposable
             }
         }
     }
-
-    /// <summary>
-    /// Отменяет процесс обновления JWT и ожидает завершения задачи обновления, если она выполняется.
-    /// </summary>
-    /// <returns> Задача, представляющая собой асинхронную операцию.</returns>
-    public async Task StopJwtRenewalAsync()
-    {
-        _streamCts?.Cancel();
-        if (_jwtRenewalTask != null) await _jwtRenewalTask.ConfigureAwait(false);
-
-        _streamCts?.Dispose();
-        _streamCts = null;
-        _jwtRenewalTask = null;
-    }
-
-    public void Dispose()
-    {
-        //Console.WriteLine("[SDK] Зашли в Dispose");
-
-        _streamCts?.Cancel();
-        _streamCts?.Dispose();
-        //_channel.ShutdownAsync();
-        //_channel?.Dispose();
-    }
-
-    //public async Task StopJwtRenewalAsync()
-    //{
-    //    if (_streamCts != null)
-    //    {
-    //        // 1. Сигнализируем об отмене
-    //        _streamCts.Cancel();
-
-    //        // 2. Ждем завершения задачи чтения стрима
-    //        // Это гарантирует, что стрим полностью закрыт и ресурсы освобождены
-    //        if (_jwtRenewalTask != null)
-    //        {
-    //            try
-    //            {
-    //                await _jwtRenewalTask.ConfigureAwait(false);
-    //            }
-    //            catch (OperationCanceledException)
-    //            {
-    //                // Игнорируем, так как мы сами инициировали отмену
-    //            }
-    //            catch (RpcException ex) when (ex.StatusCode == StatusCode.Cancelled)
-    //            {
-    //                // Игнорируем штатную отмену gRPC
-    //            }
-    //        }
-
-    //        // 3. Очищаем ресурсы
-    //        _streamCts.Dispose();
-    //        _streamCts = null;
-    //        _jwtRenewalTask = null;
-    //    }
-    //}
-
 }
