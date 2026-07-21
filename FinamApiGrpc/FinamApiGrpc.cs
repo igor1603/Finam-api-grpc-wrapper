@@ -84,6 +84,4 @@ public class FinamApiGrpc : IDisposable
 
         GC.SuppressFinalize(this);
     }
-
-
 }

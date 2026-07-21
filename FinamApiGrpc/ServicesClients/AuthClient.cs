@@ -4,7 +4,7 @@ using Auth = Grpc.Tradeapi.V1.Auth;
 
 namespace FinamApiGrpc.ServicesClients;
 
-public class AuthClient : Auth.AuthService.AuthServiceClient, IDisposable
+public class AuthClient : AuthService.AuthServiceClient, IDisposable
 {
     #region Поля
     private readonly string                     _secretKey;
@@ -52,16 +52,6 @@ public class AuthClient : Auth.AuthService.AuthServiceClient, IDisposable
 #if DEBUG
         Console.WriteLine($"[Auth] Прошли авторизацию");
 #endif
-        /*
-        if (autoStartJwtRenewal)
-        {
-#if DEBUG
-            Console.WriteLine($"[Auth] Запускаем автоматическое продление jwt токена");
-#endif
-            await SubscribeJwtRenewal();
-        }
-        return authResponse.Token;
-        */
         return _currentJwtToken;
     }
 

@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Finam.gRPC.Wrapper\FinamApiGrpc.csproj" />
+    <ProjectReference Include="..\FinamApiGrpc\FinamApiGrpc.csproj" />
   </ItemGroup>
 
   <ItemGroup>

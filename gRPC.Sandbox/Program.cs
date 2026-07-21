@@ -1,10 +1,9 @@
 ﻿using Microsoft.Extensions.Configuration;
 
+//using Grpc.
 using Grpc.Tradeapi.V1.Auth;
 using static Grpc.Tradeapi.V1.Auth.MDPermission.Types;
 using Grpc.Tradeapi.V1.Accounts;
-
-using FinamApiGrpc; 
 
 internal class Program
 {
