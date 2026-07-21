@@ -79,12 +79,11 @@ public class FinamApiGrpc : IDisposable
 
     public void Dispose()
     {
-        //Console.WriteLine("[SDK] Зашли в Dispose");
-
-        //_streamCts?.Cancel();
-        //_streamCts?.Dispose();
         _channel.ShutdownAsync();
         _channel?.Dispose();
+
+        GC.SuppressFinalize(this);
     }
+
 
 }

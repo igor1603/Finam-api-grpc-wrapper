@@ -12,7 +12,7 @@ internal class Program
     /// Точка входа и инициализация клиента сервисов Финам
     /// </summary>
     /// <param name="args"></param>
-    private static async Task Main(string[] args)
+    private static async Task Main()
     {
         try
         {
@@ -67,42 +67,45 @@ internal class Program
             #endregion
 
             #region 4. Запускаем авторизацию
-            Console.WriteLine("""[Песочница] Заходим в авторизацию.""");
+            Console.WriteLine("\n[Песочница] Заходим в авторизацию.");
             await Services.AuthService.Auth();
-            Console.WriteLine("""[Песочница] Авторизовались.""");
             #endregion
 
             #region 5. Запускаем автоматическое продление jwt токена
-            Console.WriteLine("""[Песочница] Запускает автоматическое продление jwt токена.""");
+            Console.WriteLine("\n[Песочница] Запускает автоматическое продление jwt токена.");
             await Services.AuthService.SubscribeJwtRenewal();
             #endregion
 
-            Console.WriteLine("""[Песочница] Нажатие любой клавиши - переход к следующему тесту""");
+            Console.WriteLine("\n[Песочница] Нажатие любой клавиши - переход к получению идентификатора торгового счета");
             Console.ReadKey();
             
             #region 6. Получаем идентификатор торгового счета
-            Console.WriteLine($"[Песочница] Запустили получение идентификатора торгового счета");
+            Console.WriteLine("\n[Песочница] Запускаем получение идентификатора торгового счета");
             var accountRequest = new GetAccountRequest() { AccountId = myAccountId };
             var accountResponse = await Services.AccountsService.GetAccountAsync(accountRequest);
             Console.WriteLine($"[Песочница] Получили идентификатор торгового счета: {accountResponse.AccountId}");
             #endregion
 
+            Console.WriteLine("\n[Песочница] Нажатие любой клавиши - переход к получению деталей токена");
+            Console.ReadKey();
+
             #region 7. Получаем детали токена
-            Console.WriteLine($"[Песочница] Запустили получение деталей токена jwt");
+            Console.WriteLine("\n[Песочница] Запустили получение деталей токена jwt");
             var tokenDetailsResponse = await Services.AuthService.TokenDetails();
             TokenDataProcessor.PrintActualTokenDetails( tokenDetailsResponse );
-            Console.WriteLine($"[Песочница] Получили детали токена jwt");
-            #endregion
-            #region 7. Останавливаем автоматическое обновление jwt токена
-            Console.WriteLine("""
-                [Песочница] Если нажать любую клавишу, то будет отменено автоматическое
-                продление jwt токена
-                """);
-            Console.ReadKey();
-            await Services.AuthService.UnsubscribeJwtRenewal();
-            Console.WriteLine($"[Песочница] : {accountResponse.AccountId}");
+            Console.WriteLine("[Песочница] Получили детали токена jwt");
             #endregion
 
+            Console.WriteLine("\n[Песочница] Нажатие любой клавиши - переход к останове автоматического обновления jwt токена");
+            Console.ReadKey();
+
+            #region 7. Останавливаем автоматическое обновление jwt токена
+            Console.WriteLine("\n[Песочница] Останавливаем автоматическое продление jwt токена");
+            await Services.AuthService.UnsubscribeJwtRenewal();
+            #endregion
+
+            Console.WriteLine("\n[Песочница] Нажатие любой клавиши - выход из try");
+            Console.ReadKey();
         }
         #region catches
         catch (FileNotFoundException fileEx)
@@ -119,7 +122,7 @@ internal class Program
         }
         #endregion
 
-        Console.WriteLine("[Песочница] Завершили работу. Нажмите любую клавишу для выхода.");
+        Console.WriteLine("\n[Песочница] Завершили работу. Нажмите любую клавишу для закрытия программы");
         Console.ReadKey();
     }
 
@@ -133,7 +136,7 @@ internal class Program
             DateTime createdLocal = details.CreatedAt.ToDateTime().ToLocalTime();
             DateTime expiresLocal = details.ExpiresAt.ToDateTime().ToLocalTime();
 
-            Console.WriteLine($"Создан (Локально): {createdLocal:yyyy-MM-dd HH:mm:ss}");
+            Console.WriteLine($"Создан (Локально): {createdLocal:yyyy-MM-dd HH:mm:ss.fff}");
             Console.WriteLine($"Истекает (Локально): {expiresLocal:yyyy-MM-dd HH:mm:ss}");
             Console.WriteLine($"Режим 'Только чтение' (Readonly): {(details.Readonly ? "ДА (Торговля заблокирована)" : "НЕТ (Робот может торговать)")}");
 

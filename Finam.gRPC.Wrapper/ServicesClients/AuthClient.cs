@@ -7,18 +7,17 @@ namespace FinamApiGrpc.ServicesClients;
 public class AuthClient : Auth.AuthService.AuthServiceClient, IDisposable
 {
     #region Поля
-    private readonly string             _secretKey;
-    private readonly string             _accountId;
-    private string?                     _currentJwtToken;
+    private readonly string                     _secretKey;
+    private readonly string                     _accountId;
+    private string?                             _currentJwtToken;
 
-    private CancellationTokenSource?    _streamCts;
-    private CancellationToken           _cancellationToken;
-    private readonly Action<string>     _setJwtToken;
+    private CancellationTokenSource?            _streamCts;
+    private readonly Action<string>             _setJwtToken;
 
-    private readonly AuthRequest        _authRequest;
-    private SubscribeJwtRenewalRequest  _subscribeJwtRenewalRequest;
+    private readonly AuthRequest                _authRequest;
+    private readonly SubscribeJwtRenewalRequest _subscribeJwtRenewalRequest;
 
-    private Task?                       _jwtRenewalTask;
+    private Task?                               _jwtRenewalTask;
     #endregion
 
     /// <summary>
@@ -36,7 +35,6 @@ public class AuthClient : Auth.AuthService.AuthServiceClient, IDisposable
         _authRequest = new AuthRequest { Secret = _secretKey, SourceAppId = _accountId };
         _subscribeJwtRenewalRequest = new SubscribeJwtRenewalRequest { Secret = _secretKey, SourceAppId = _secretKey };
         _streamCts = new CancellationTokenSource();
-        _cancellationToken = _streamCts.Token;
         _setJwtToken = setJwtToken;
     }
 
@@ -72,33 +70,9 @@ public class AuthClient : Auth.AuthService.AuthServiceClient, IDisposable
         return StartTokenDetails();
     }
 
-    public async Task<TokenDetailsResponse> StartTokenDetails()
-    {
-#if DEBUG
-        Console.WriteLine($"[Auth] Запускаем получение деталей токена");
-#endif
-        // Проверяем, есть ли вообще токен в памяти
-        if (string.IsNullOrEmpty(_currentJwtToken))
-        {
-            throw new InvalidOperationException(
-                "Невозможно запросить детали токена: локальный JWT-токен пуст или еще не инициализирован.");
-        }
-
-        // 1. Формируем Protobuf запрос
-        var request = new TokenDetailsRequest{ Token = _currentJwtToken };
-
-        // 2. Вызываем базовый асинхронный gRPC-метод
-        TokenDetailsResponse tokenDetailsResponse = await TokenDetailsAsync(request);
-
-        // 3. Возвращаем полученный от Финама Protobuf-объект наружу пользователю
-#if DEBUG
-        Console.WriteLine($"[Auth] Получили детали jwt токена");
-#endif
-        return tokenDetailsResponse;
-    }
-
     /// <summary>
-    /// Создает задачу в новом потоке, в которой запускает метод включения автоматического обновления jwt токена - SubscribeJwtRenewal.
+    /// Создает задачу в новом потоке, в которой запускает метод включения 
+    /// автоматического обновления jwt токена - Base.SubscribeJwtRenewal.
     /// </summary>
     /// <returns> Task.CompletedTask - задача, которая уже была успешно выполнена. </returns>
     public Task SubscribeJwtRenewal()
@@ -113,7 +87,6 @@ public class AuthClient : Auth.AuthService.AuthServiceClient, IDisposable
         }
         return Task.CompletedTask;
     }
-
     /// <summary>
     /// Отменяет процесс обновления JWT и ожидает завершения задачи обновления, если она выполняется.
     /// </summary>
@@ -141,6 +114,7 @@ public class AuthClient : Auth.AuthService.AuthServiceClient, IDisposable
 
         _streamCts?.Cancel();
         _streamCts?.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>
@@ -155,32 +129,38 @@ public class AuthClient : Auth.AuthService.AuthServiceClient, IDisposable
         int maxDelaySeconds = 60;
         int currentDelaySeconds = baseDelaySeconds;
 
-        while (!_cancellationToken.IsCancellationRequested)
+        // Проверяем, что _streamCts не null перед использованием
+        if (_streamCts == null)
+        {
+            throw new InvalidOperationException("_streamCts не инициализирован.");
+        }
+
+        while (!_streamCts.Token.IsCancellationRequested)
         {
             try
             {
 #if DEBUG
-                Console.WriteLine("[Auth] Открытие стрима автоматического продления JWT..."); 
+                Console.WriteLine("[Auth] Открываем стрим автоматического продления JWT..."); 
 #endif
                 using var streamingCall = SubscribeJwtRenewal(_subscribeJwtRenewalRequest);
 
                 if (streamingCall?.ResponseStream == null)
                 {
-                    throw new InvalidOperationException("[SDK] Сервер Финам вернул пустой поток ответов.");
+                    throw new InvalidOperationException("[Auth] Сервер Финам вернул пустой поток ответов.");
                 }
 
                 // Бесконечное чтение токенов из сети
-#if DEBUG
-                Console.WriteLine("[Auth] Фоновое обновление: Ожидание нового JWT-токен сессии."); 
-#endif
-                await foreach (var response in streamingCall.ResponseStream.ReadAllAsync(_cancellationToken))
+                await foreach (var response in streamingCall.ResponseStream.ReadAllAsync(_streamCts.Token))
                 {
+#if DEBUG
+                    Console.WriteLine("[Auth] Ожидаем новый JWT-токен сессии."); 
+#endif
                     if (response != null && !string.IsNullOrEmpty(response.Token))
                     {
                         _currentJwtToken = response.Token;
                         _setJwtToken(_currentJwtToken);
 #if DEBUG
-                        Console.WriteLine($"[Auth] Фоновое обновление: Успешно применен новый JWT-токен сессии.{_currentJwtToken}");
+                        Console.WriteLine($"""[Auth] Получен и сохранен новый JWT-токен сессии.{_currentJwtToken}""");
 #endif
                         // Как только получили хотя бы один успешный ответ — сбрасываем паузу переподключения к начальной
                         currentDelaySeconds = baseDelaySeconds;
@@ -204,7 +184,7 @@ public class AuthClient : Auth.AuthService.AuthServiceClient, IDisposable
 #if DEBUG
                 Console.WriteLine($"[Auth] Ожидание перед повторным подключением: {currentDelaySeconds} сек...");
 #endif
-                await Task.Delay(TimeSpan.FromSeconds(currentDelaySeconds), _cancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(currentDelaySeconds), _streamCts.Token);
                 currentDelaySeconds = Math.Min(currentDelaySeconds * 2, maxDelaySeconds);
             }
             catch (Exception ex)
@@ -213,9 +193,33 @@ public class AuthClient : Auth.AuthService.AuthServiceClient, IDisposable
 #if DEBUG
                 Console.WriteLine($"[Auth] Непредвиденная ошибка в стриме обновлений: {ex.Message}"); 
 #endif
-                await Task.Delay(TimeSpan.FromSeconds(currentDelaySeconds), _cancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(currentDelaySeconds), _streamCts.Token);
                 currentDelaySeconds = Math.Min(currentDelaySeconds * 2, maxDelaySeconds);
             }
         }
+    }
+    private async Task<TokenDetailsResponse> StartTokenDetails()
+    {
+#if DEBUG
+        Console.WriteLine($"[Auth] Запускаем получение деталей токена");
+#endif
+        // Проверяем, есть ли вообще токен в памяти
+        if (string.IsNullOrEmpty(_currentJwtToken))
+        {
+            throw new InvalidOperationException(
+                "Невозможно запросить детали токена: локальный JWT-токен пуст или еще не инициализирован.");
+        }
+
+        // 1. Формируем Protobuf запрос
+        var request = new TokenDetailsRequest{ Token = _currentJwtToken };
+
+        // 2. Вызываем базовый асинхронный gRPC-метод
+        TokenDetailsResponse tokenDetailsResponse = await TokenDetailsAsync(request);
+
+        // 3. Возвращаем полученный от Финама Protobuf-объект наружу пользователю
+#if DEBUG
+        Console.WriteLine($"[Auth] Получили детали jwt токена");
+#endif
+        return tokenDetailsResponse;
     }
 }
