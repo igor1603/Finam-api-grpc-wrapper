@@ -75,20 +75,30 @@ internal class Program
             await Services.AuthService.SubscribeJwtRenewal();
             #endregion
 
-            Console.WriteLine("\n[Песочница] Нажатие любой клавиши - переход к получению идентификатора торгового счета");
+            Console.WriteLine("\n[Песочница] Нажатие любой клавиши - переход к получению деталей токена jwt");
             Console.ReadKey();
 
             #region 6. Получаем детали токена
             Console.WriteLine("\n[Песочница] Запустили получение деталей токена jwt");
             var tokenDetailsResponse = await Services.AuthService.TokenDetails();
-            TokenDataProcessor.PrintActualTokenDetails( tokenDetailsResponse );
+            PrintTokenDetails(tokenDetailsResponse);
             Console.WriteLine("[Песочница] Получили детали токена jwt");
+            #endregion
+
+            Console.WriteLine("\n[Песочница] Нажатие любой клавиши - переход к получению информации по счету");
+            Console.ReadKey();
+
+            #region 7 Получаем информацию по счёту
+            Console.WriteLine("\n[Песочница] Получаем информацию по счёту.");
+            var accountResponse = await Services.AccountsService.GetAccount();
+            PrintAccountInformation(accountResponse);
+            Console.WriteLine($"[Песочница] Получили информацию по счёту");
             #endregion
 
             Console.WriteLine("\n[Песочница] Нажатие любой клавиши - переход к останове автоматического обновления jwt токена");
             Console.ReadKey();
 
-            #region 7. Останавливаем автоматическое обновление jwt токена
+            #region Останавливаем автоматическое обновление jwt токена
             Console.WriteLine("\n[Песочница] Останавливаем автоматическое продление jwt токена");
             await Services.AuthService.UnsubscribeJwtRenewal();
             #endregion
@@ -115,75 +125,80 @@ internal class Program
         Console.ReadKey();
     }
 
-    public static class TokenDataProcessor
+    public static void PrintTokenDetails(TokenDetailsResponse details)
     {
-        public static void PrintActualTokenDetails(TokenDetailsResponse details)
+        Console.WriteLine("\nДетали токена jwt");
+
+        // 1. РАБОТА С ДАТАМИ (Обе даты теперь Timestamp)
+        DateTime createdLocal = details.CreatedAt.ToDateTime().ToLocalTime();
+        DateTime expiresLocal = details.ExpiresAt.ToDateTime().ToLocalTime();
+
+        Console.WriteLine($"Создан (Локально): {createdLocal:yyyy-MM-dd HH:mm:ss.fff}");
+        Console.WriteLine($"Истекает (Локально): {expiresLocal:yyyy-MM-dd HH:mm:ss}");
+        Console.WriteLine($"Режим 'Только чтение' (Readonly): {(details.Readonly ? "ДА (Торговля заблокирована)" : "НЕТ (Робот может торговать)")}");
+
+        // 2. РАБОТА С МАССИВОМ ДОСТУПНЫХ СЧЕТОВ (RepeatedField<string>)
+        Console.WriteLine($"\nДоступные торговые счета (Всего: {details.AccountIds.Count}):");
+        foreach (string accountId in details.AccountIds)
         {
-            Console.WriteLine("====== АКТУАЛЬНЫЙ АНАЛИЗ ТОКЕНА ФИНАМА ======");
+            Console.WriteLine($"  - Счёт: {accountId}");
+        }
 
-            // 1. РАБОТА С ДАТАМИ (Обе даты теперь Timestamp)
-            DateTime createdLocal = details.CreatedAt.ToDateTime().ToLocalTime();
-            DateTime expiresLocal = details.ExpiresAt.ToDateTime().ToLocalTime();
+        // 3. РАБОТА СО СЛОЖНЫМ ВЛОЖЕННЫМ МАССИВОМ (RepeatedField<MDPermission>)
+        Console.WriteLine($"\nРазрешения на рыночные данные (Всего: {details.MdPermissions.Count}):");
+        foreach (MDPermission permission in details.MdPermissions)
+        {
+            Console.WriteLine($"  ----------------------------------------");
+            Console.WriteLine($"  Биржа (MIC):      {permission.Mic}");
+            Console.WriteLine($"  Страна/Континент: {permission.Country} / {permission.Continent}");
+            Console.WriteLine($"  Весь мир?         {(permission.Worldwide ? "Да" : "Нет")}");
+            Console.WriteLine($"  Задержка данных:  {permission.DelayMinutes} мин.");
 
-            Console.WriteLine($"Создан (Локально): {createdLocal:yyyy-MM-dd HH:mm:ss.fff}");
-            Console.WriteLine($"Истекает (Локально): {expiresLocal:yyyy-MM-dd HH:mm:ss}");
-            Console.WriteLine($"Режим 'Только чтение' (Readonly): {(details.Readonly ? "ДА (Торговля заблокирована)" : "НЕТ (Робот может торговать)")}");
-
-            // 2. РАБОТА С МАССИВОМ ДОСТУПНЫХ СЧЕТОВ (RepeatedField<string>)
-            Console.WriteLine($"\nДоступные торговые счета (Всего: {details.AccountIds.Count}):");
-            foreach (string accountId in details.AccountIds)
+            // РАБОТА С ENUM (QuoteLevel)
+            // В C# это будет выглядеть как проверка именованных констант
+            Console.Write(" Уровень стакана: ");
+            switch (permission.QuoteLevel)
             {
-                Console.WriteLine($"  - Счёт: {accountId}");
+                case QuoteLevel.DepthOfBook:
+                    Console.WriteLine("Полная глубина книги заявок (Максимальный доступ)");
+                    break;
+                case QuoteLevel.DepthOfMarket:
+                    Console.WriteLine("Обычный биржевой стакан (DOM)");
+                    break;
+                case QuoteLevel.BestBidOffer:
+                    Console.WriteLine("Только лучшая цена покупки/продажи (BBO)");
+                    break;
+                case QuoteLevel.LastPrice:
+                    Console.WriteLine("Только цена последней сделки");
+                    break;
+                case QuoteLevel.AccessForbidden:
+                    Console.WriteLine("ДОСТУП ЗАПРЕЩЕН");
+                    break;
+                default:
+                    Console.WriteLine($"Неизвестный статус ({permission.QuoteLevel})");
+                    break;
             }
-
-            // 3. РАБОТА СО СЛОЖНЫМ ВЛОЖЕННЫМ МАССИВОМ (RepeatedField<MDPermission>)
-            Console.WriteLine($"\nРазрешения на рыночные данные (Всего: {details.MdPermissions.Count}):");
-            foreach (MDPermission permission in details.MdPermissions)
-            {
-                Console.WriteLine($"  ----------------------------------------");
-                Console.WriteLine($"  Биржа (MIC):      {permission.Mic}");
-                Console.WriteLine($"  Страна/Континент: {permission.Country} / {permission.Continent}");
-                Console.WriteLine($"  Весь мир?         {(permission.Worldwide ? "Да" : "Нет")}");
-                Console.WriteLine($"  Задержка данных:  {permission.DelayMinutes} мин.");
-
-                // РАБОТА С ENUM (QuoteLevel)
-                // В C# это будет выглядеть как проверка именованных констант
-                Console.Write(" Уровень стакана: ");
-                switch (permission.QuoteLevel)
-                {
-                    case QuoteLevel.DepthOfBook:
-                        Console.WriteLine("Полная глубина книги заявок (Максимальный доступ)");
-                        break;
-                    case QuoteLevel.DepthOfMarket:
-                        Console.WriteLine("Обычный биржевой стакан (DOM)");
-                        break;
-                    case QuoteLevel.BestBidOffer:
-                        Console.WriteLine("Только лучшая цена покупки/продажи (BBO)");
-                        break;
-                    case QuoteLevel.LastPrice:
-                        Console.WriteLine("Только цена последней сделки");
-                        break;
-                    case QuoteLevel.AccessForbidden:
-                        Console.WriteLine("ДОСТУП ЗАПРЕЩЕН");
-                        break;
-                    default:
-                        Console.WriteLine($"Неизвестный статус ({permission.QuoteLevel})");
-                        break;
-                }
-            }
-            Console.WriteLine("=============================================");
         }
     }
 
+    public static void PrintAccountInformation(GetAccountResponse information)
+    {
+        Console.WriteLine("\nИнформация по аккаунту");
+
+        Console.WriteLine($"ID: {information.AccountId}");
+        Console.WriteLine($"Тип: {information.Type}");
+        Console.WriteLine($"Статус: {information.Status}");
+    }
+
     // Шаблон нового теста
+
+    //Console.WriteLine("\n[Песочница] Нажатие любой клавиши - ... ");
+    //Console.ReadKey();
+
     //#region . Получаем ...
     //Console.WriteLine("\n[Песочница] Запускаем ...");
-    //var accountRequest = ... ;
     //var accountResponse = ... ;
     //Console.WriteLine($"[Песочница] Получили ...: {}");
     //#endregion
-    
-    //Console.WriteLine("\n[Песочница] Нажатие любой клавиши - переход к получению деталей токена");
-    //Console.ReadKey();
 
 }

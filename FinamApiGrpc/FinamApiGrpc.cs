@@ -3,19 +3,10 @@ using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
 using Grpc.Net.Client.Configuration;
 
-//using Grpc.Tradeapi.V1.Auth;
-//using Grpc.Tradeapi.V1.Accounts;
-//using Grpc.Tradeapi.V1.Orders;
-//using Grpc.Tradeapi.V1.Marketdata;
-//using Grpc.Tradeapi.V1.Assets;
-//using Grpc.Tradeapi.V1.Metrics;
-//using Grpc.Tradeapi.V1.Reports;
-//using Grpc.Tradeapi.V1.Corporateactions;
-
 using FinamApiGrpc.Interceptors;
 using FinamApiGrpc.ServicesClients;
 
-namespace FinamApiGrpc; 
+namespace FinamApiGrpc;
 
 public class FinamApiGrpc : IDisposable
 {
@@ -30,6 +21,7 @@ public class FinamApiGrpc : IDisposable
 
     #region Публичные поля сервисов Финама
     public AuthClient AuthService;
+    public AccountsClient AccountsService;
     #endregion
 
     public FinamApiGrpc(string targetUrl, string secretKey, string accountId)
@@ -43,13 +35,13 @@ public class FinamApiGrpc : IDisposable
         #region Настраиваем политику автоматических повторов (Retry Policy) для Unary-запросов
         var methodConfig = new MethodConfig
         {
-            Names = { MethodName.Default }, // Применяется ко всем методам по умолчанию
+            Names = { MethodName.Default },
             RetryPolicy = new RetryPolicy
             {
-                MaxAttempts = 5,                         // Максимум 5 попыток
-                InitialBackoff = TimeSpan.FromSeconds(1), // Первая пауза — 1 секунда
-                MaxBackoff = TimeSpan.FromSeconds(5),     // Максимальная пауза между попытками — 5 секунд
-                BackoffMultiplier = 1.5,                 // Каждая следующая пауза длиннее в 1.5 раза
+                MaxAttempts = 5,
+                InitialBackoff = TimeSpan.FromSeconds(1),
+                MaxBackoff = TimeSpan.FromSeconds(5),
+                BackoffMultiplier = 1.5,
                 RetryableStatusCodes = { StatusCode.Unavailable, StatusCode.Internal, StatusCode.ResourceExhausted }
             }
         };
@@ -62,7 +54,7 @@ public class FinamApiGrpc : IDisposable
         });
         #endregion
 
-        #region Связываем канал с перехватчиками
+        #region Инициализируем перехвадчики и связываем их с каналом
         var exceptionHandlingInterceptor = new ExceptionHandlingInterceptor();
         var logInterceptor = new LoggingInterceptor();
         var authInterceptor = new AuthInterceptor(() => _currentJwtToken);
@@ -72,6 +64,7 @@ public class FinamApiGrpc : IDisposable
 
         #region Инициализируем сервисы
         AuthService = new AuthClient(secretKey, accountId, _invoker, (token) => _currentJwtToken = token);
+        AccountsService = new AccountsClient(accountId, _invoker);
         #endregion
     }
 
