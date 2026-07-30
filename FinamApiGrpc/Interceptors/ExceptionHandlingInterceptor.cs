@@ -1,6 +1,9 @@
 ﻿using Grpc.Core;
 using Grpc.Core.Interceptors;
 
+namespace FinamApiGrpc.Interceptors;
+
+
 public class ExceptionHandlingInterceptor : Interceptor
 {
     private readonly int _maxRetryCount;

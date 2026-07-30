@@ -26,7 +26,7 @@ public class AuthClient : AuthService.AuthServiceClient, IDisposable
     /// <param name="secretKey"> Секретный ключ. Генерируется на сайте Финам API https://api.finam.ru/tokens/</param>
     /// <param name="accountId"> Номер счета без префикса КлФ- только цифры</param>
     /// <param name="_invoker"> CallInvoker канала</param>
-    /// <param name="setJwtToken"> Делегат из ServicesClients_Wrappers, обновляющий jwt токен </param>
+    /// <param name="setJwtToken"> Делегат из FinamApiGrpc, обновляющий jwt токен </param>
     /// <exception cref="ArgumentNullException">Генерируется, когда параметры имеют значение null. </exception>
     public AuthClient(string secretKey, string accountId, CallInvoker _invoker, Action<string> setJwtToken) : base(_invoker)
     {
@@ -116,7 +116,7 @@ public class AuthClient : AuthService.AuthServiceClient, IDisposable
     private async Task SrartSubscribeJwtRenewal()
     {
         int baseDelaySeconds = 2;
-        int maxDelaySeconds = 60;
+        int maxDelaySeconds = 65;
         int currentDelaySeconds = baseDelaySeconds;
 
         // Проверяем, что _streamCts не null перед использованием

@@ -12,6 +12,7 @@ using Grpc.Tradeapi.V1.Metrics;
 using Grpc.Tradeapi.V1.Reports;
 using Grpc.Tradeapi.V1.Corporateactions;
 
+using FinamApiGrpc.Interceptors;
 using FinamApiGrpc.ServicesClients;
 
 namespace FinamApiGrpc; 
@@ -62,9 +63,9 @@ public class FinamApiGrpc : IDisposable
         });
         #endregion
 
-        #region Связываем канал с универсальным перехватчиком
-        var logInterceptor = new LoggingInterceptor();
+        #region Связываем канал с перехватчиками
         var exceptionHandlingInterceptor = new ExceptionHandlingInterceptor();
+        var logInterceptor = new LoggingInterceptor();
         var authInterceptor = new AuthInterceptor(() => _currentJwtToken);
 
         _invoker = _channel.Intercept(exceptionHandlingInterceptor).Intercept(logInterceptor).Intercept(authInterceptor);
