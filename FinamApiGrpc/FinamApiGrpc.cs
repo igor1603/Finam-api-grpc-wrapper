@@ -3,14 +3,14 @@ using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
 using Grpc.Net.Client.Configuration;
 
-using Grpc.Tradeapi.V1.Auth;
-using Grpc.Tradeapi.V1.Accounts;
-using Grpc.Tradeapi.V1.Orders;
-using Grpc.Tradeapi.V1.Marketdata;
-using Grpc.Tradeapi.V1.Assets;
-using Grpc.Tradeapi.V1.Metrics;
-using Grpc.Tradeapi.V1.Reports;
-using Grpc.Tradeapi.V1.Corporateactions;
+//using Grpc.Tradeapi.V1.Auth;
+//using Grpc.Tradeapi.V1.Accounts;
+//using Grpc.Tradeapi.V1.Orders;
+//using Grpc.Tradeapi.V1.Marketdata;
+//using Grpc.Tradeapi.V1.Assets;
+//using Grpc.Tradeapi.V1.Metrics;
+//using Grpc.Tradeapi.V1.Reports;
+//using Grpc.Tradeapi.V1.Corporateactions;
 
 using FinamApiGrpc.Interceptors;
 using FinamApiGrpc.ServicesClients;
@@ -30,7 +30,6 @@ public class FinamApiGrpc : IDisposable
 
     #region Публичные поля сервисов Финама
     public AuthClient AuthService;
-    public AccountsService.AccountsServiceClient AccountsService; 
     #endregion
 
     public FinamApiGrpc(string targetUrl, string secretKey, string accountId)
@@ -73,8 +72,6 @@ public class FinamApiGrpc : IDisposable
 
         #region Инициализируем сервисы
         AuthService = new AuthClient(secretKey, accountId, _invoker, (token) => _currentJwtToken = token);
-
-        AccountsService = new AccountsService.AccountsServiceClient(_invoker); 
         #endregion
     }
 

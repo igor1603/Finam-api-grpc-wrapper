@@ -1,9 +1,9 @@
-﻿using Microsoft.Extensions.Configuration;
-
+﻿using Google.Api;
+using Grpc.Tradeapi.V1.Accounts;
 //using Grpc.
 using Grpc.Tradeapi.V1.Auth;
+using Microsoft.Extensions.Configuration;
 using static Grpc.Tradeapi.V1.Auth.MDPermission.Types;
-using Grpc.Tradeapi.V1.Accounts;
 
 internal class Program
 {
@@ -77,18 +77,8 @@ internal class Program
 
             Console.WriteLine("\n[Песочница] Нажатие любой клавиши - переход к получению идентификатора торгового счета");
             Console.ReadKey();
-            
-            #region 6. Получаем идентификатор торгового счета
-            Console.WriteLine("\n[Песочница] Запускаем получение идентификатора торгового счета");
-            var accountRequest = new GetAccountRequest() { AccountId = myAccountId };
-            var accountResponse = await Services.AccountsService.GetAccountAsync(accountRequest);
-            Console.WriteLine($"[Песочница] Получили идентификатор торгового счета: {accountResponse.AccountId}");
-            #endregion
 
-            Console.WriteLine("\n[Песочница] Нажатие любой клавиши - переход к получению деталей токена");
-            Console.ReadKey();
-
-            #region 7. Получаем детали токена
+            #region 6. Получаем детали токена
             Console.WriteLine("\n[Песочница] Запустили получение деталей токена jwt");
             var tokenDetailsResponse = await Services.AuthService.TokenDetails();
             TokenDataProcessor.PrintActualTokenDetails( tokenDetailsResponse );
@@ -184,4 +174,16 @@ internal class Program
             Console.WriteLine("=============================================");
         }
     }
+
+    // Шаблон нового теста
+    //#region . Получаем ...
+    //Console.WriteLine("\n[Песочница] Запускаем ...");
+    //var accountRequest = ... ;
+    //var accountResponse = ... ;
+    //Console.WriteLine($"[Песочница] Получили ...: {}");
+    //#endregion
+    
+    //Console.WriteLine("\n[Песочница] Нажатие любой клавиши - переход к получению деталей токена");
+    //Console.ReadKey();
+
 }
