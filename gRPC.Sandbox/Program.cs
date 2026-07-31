@@ -1,4 +1,5 @@
-﻿using Google.Api;
+﻿using Google.Protobuf.WellKnownTypes;
+using Google.Type;
 using Grpc.Tradeapi.V1.Accounts;
 //using Grpc.
 using Grpc.Tradeapi.V1.Auth;
@@ -61,13 +62,13 @@ internal class Program
             );
             #endregion
 
-            // Авторизации - AuthService
+            // Авторизация - AuthService
             #region Запускаем авторизацию
             Console.WriteLine("\n[Песочница] Заходим в авторизацию.");
             await FinamGrpcServices.AuthService.Auth();
             #endregion
             #region Запускаем автоматическое продление jwt токена
-            Console.WriteLine("\n[Песочница] Запускает автоматическое продление jwt токена.");
+            Console.WriteLine("\n[Песочница] Запускаем автоматическое продление jwt токена.");
             await FinamGrpcServices.AuthService.SubscribeJwtRenewal();
             #endregion
             #region Получаем детали токена
@@ -87,6 +88,25 @@ internal class Program
             var accountResponse = await FinamGrpcServices.AccountsService.GetAccount("143047");
             PrintAccountInformation(accountResponse);
             Console.WriteLine($"[Песочница] Получили информацию по счёту");
+            #endregion
+            #region Получаем историю сделок
+            Console.WriteLine("\n[Песочница] Нажатие любой клавиши - переход к получению истории сделок");
+            Console.ReadKey();
+            Console.WriteLine("\n[Песочница] Получаем историю сделок.");
+            var interval = new Interval
+            {
+                StartTime = Timestamp.FromDateTime(System.DateTime.UtcNow.AddDays(-3)),
+                EndTime = Timestamp.FromDateTime(System.DateTime.UtcNow)
+            };
+            var tradesResponse = await FinamGrpcServices.AccountsService.Trades("143047", limit: 10, interval);
+            PrintTradesHistory(tradesResponse);
+            #endregion
+            #region Получаем историю транзакций
+            Console.WriteLine("\n[Песочница] Нажатие любой клавиши - переход к получению истории транзакций");
+            Console.ReadKey();
+            Console.WriteLine("\n[Песочница] Получаем историю транзакций.");
+            var transactionsResponse = await FinamGrpcServices.AccountsService.Transactions("143047", limit: 10);
+            PrintTransactionsHistory(transactionsResponse);
             #endregion
 
             // Останавливка автоматического продления jwt токена
@@ -124,8 +144,8 @@ internal class Program
         Console.WriteLine("\nДетали токена jwt");
 
         // 1. РАБОТА С ДАТАМИ (Обе даты теперь Timestamp)
-        DateTime createdLocal = details.CreatedAt.ToDateTime().ToLocalTime();
-        DateTime expiresLocal = details.ExpiresAt.ToDateTime().ToLocalTime();
+        System.DateTime createdLocal = details.CreatedAt.ToDateTime().ToLocalTime();
+        System.DateTime expiresLocal = details.ExpiresAt.ToDateTime().ToLocalTime();
 
         Console.WriteLine($"Создан (Локально): {createdLocal:yyyy-MM-dd HH:mm:ss.fff}");
         Console.WriteLine($"Истекает (Локально): {expiresLocal:yyyy-MM-dd HH:mm:ss}");
@@ -182,6 +202,67 @@ internal class Program
         Console.WriteLine($"ID: {information.AccountId}");
         Console.WriteLine($"Тип: {information.Type}");
         Console.WriteLine($"Статус: {information.Status}");
+    }
+
+    public static void PrintTradesHistory(TradesResponse tradesResponse)
+    {
+        Console.WriteLine("\nИстория сделок");
+
+        Console.WriteLine($"Количество сделок: {tradesResponse.Trades.Count}");
+
+        if (tradesResponse.Trades.Count == 0)
+        {
+            Console.WriteLine("Сделки отсутствуют.");
+            return;
+        }
+
+        foreach (var trade in tradesResponse.Trades)
+        {
+            Console.WriteLine($"- TradeId: {trade.TradeId}");
+            Console.WriteLine($"  Symbol: {trade.Symbol}");
+            Console.WriteLine($"  Price: {trade.Price?.Value}");
+            Console.WriteLine($"  Size: {trade.Size?.Value}");
+            Console.WriteLine($"  Side: {trade.Side}");
+            Console.WriteLine($"  OrderId: {trade.OrderId}");
+            Console.WriteLine($"  AccountId: {trade.AccountId}");
+            Console.WriteLine($"  Timestamp: {trade.Timestamp.ToDateTime().ToLocalTime():yyyy-MM-dd HH:mm:ss}");
+            Console.WriteLine();
+        }
+    }
+
+    public static void PrintTransactionsHistory(TransactionsResponse transactionsResponse)
+    {
+        Console.WriteLine("\nИстория транзакций");
+
+        Console.WriteLine($"Количество транзакций: {transactionsResponse.Transactions.Count}");
+
+        if (transactionsResponse.Transactions.Count == 0)
+        {
+            Console.WriteLine("Транзакции отсутствуют.");
+            return;
+        }
+
+        foreach (var transaction in transactionsResponse.Transactions)
+        {
+            Console.WriteLine($"- Id: {transaction.Id}");
+            Console.WriteLine($"  Symbol: {transaction.Symbol}");
+            Console.WriteLine($"  Category: {transaction.TransactionCategory}");
+            Console.WriteLine($"  Name: {transaction.TransactionName}");
+            Console.WriteLine($"  Timestamp: {transaction.Timestamp.ToDateTime().ToLocalTime():yyyy-MM-dd HH:mm:ss}");
+
+            if (transaction.Change != null)
+            {
+                Console.WriteLine($"  Change: {transaction.Change.Units} {transaction.Change.CurrencyCode}");
+            }
+
+            if (transaction.Trade != null)
+            {
+                Console.WriteLine($"  Trade size: {transaction.Trade.Size?.Value}");
+                Console.WriteLine($"  Trade price: {transaction.Trade.Price?.Value}");
+            }
+
+            Console.WriteLine();
+        }
     }
 
     // Шаблон нового теста

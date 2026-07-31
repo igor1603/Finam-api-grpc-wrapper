@@ -1,6 +1,8 @@
 ﻿using Grpc.Core;
 using Grpc.Core.Interceptors;
 
+namespace FinamApiGrpc.Interceptors;
+
 /// <summary>
 /// Универсальный перехватчик gRPC-запросов для Finam Trade API.
 /// </summary>
@@ -59,24 +61,27 @@ public class AuthInterceptor : Interceptor
         string methodName = context.Method.FullName;
 
         // Исключаем сервис авторизации. В актуальном API путь выглядит как "/grpc.tradeapi.v1.auth.AuthService/..."
-        if (methodName.Contains("AuthService"))
+        if (methodName.Contains("AuthService", StringComparison.OrdinalIgnoreCase))
         {
             return context;
         }
 
         string? currentToken = _getJwtTokenFunc();
-        Console.WriteLine($"[Interceptor] Считали jwt токен из ServicesClients_Wrappers {currentToken}");
 
         if (string.IsNullOrEmpty(currentToken))
         {
+            Console.WriteLine($"[AUTH] JWT-токен отсутствует для вызова {methodName}");
             throw new InvalidOperationException(
-                $"Критическая ошибка SDK: Попытка вызова метода '{methodName}' без предварительного получения JWT-токена.");
+                $"Критическая ошибка SDK: попытка вызова метода '{methodName}' без предварительного получения JWT-токена.");
         }
 
         var metadata = context.Options.Headers ?? new Metadata();
         metadata.Add("Authorization", $"Bearer {currentToken}");
 
         var newOptions = context.Options.WithHeaders(metadata);
+
+        Console.WriteLine($"[AUTH] Добавлен заголовок Authorization для {methodName}");
+
         return new ClientInterceptorContext<TRequest, TResponse>(context.Method, context.Host, newOptions);
     }
 }
