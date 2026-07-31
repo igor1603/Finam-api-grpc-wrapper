@@ -3,41 +3,30 @@ using Grpc.Tradeapi.V1.Accounts;
 
 namespace FinamApiGrpc.ServicesClients;
 
-public class AccountsClient : AccountsService.AccountsServiceClient, IDisposable
+public class AccountsClient(CallInvoker invoker) : AccountsService.AccountsServiceClient(invoker), IDisposable
 {
     #region Поля
-    private readonly string _accountId;
-    private readonly GetAccountRequest _getAccountRequest;
     #endregion
-
-    /// <summary>
-    /// Конструктор
-    /// </summary>
-    /// <param name="accountId"> Номер счета без префикса КлФ- только цифры </param>
-    /// <param name="_invoker"> CallInvoker канала </param>
-    /// <exception cref="ArgumentNullException">Генерируется, когда параметры имеют значение null. </exception>
-    public AccountsClient(string accountId, CallInvoker _invoker) : base(_invoker)
-    {
-        _accountId = accountId ?? throw new ArgumentNullException(nameof(accountId));
-        _getAccountRequest = new GetAccountRequest { AccountId = _accountId };
-    }
+    #region Свойства
+    #endregion
 
     /// <summary>
     /// Получает информацию по конкретному аккаунту.
     /// </summary>
     /// <returns> Информация о счёте. </returns>
-    public async Task<GetAccountResponse> GetAccount()
+    public async Task<GetAccountResponse> GetAccount(string accountId)
     {
-        if (string.IsNullOrWhiteSpace(_accountId))
+        if (string.IsNullOrWhiteSpace(accountId))
         {
             throw new InvalidOperationException("Невозможно запросить информацию по счёту: accountId пуст или не инициализирован.");
         }
 #if DEBUG
-        Console.WriteLine($"[Accounts] Запрашиваем информацию по счёту {_accountId}");
+        Console.WriteLine($"[Accounts] Запрашиваем информацию по счёту {accountId}");
 #endif
-        var response = await GetAccountAsync(_getAccountRequest);
+        var getAccountRequest = new GetAccountRequest { AccountId = accountId };
+        var response = await GetAccountAsync(getAccountRequest);
 #if DEBUG
-        Console.WriteLine($"[Accounts] Получили информацию по счёту {_accountId}");
+        Console.WriteLine($"[Accounts] Получили информацию по счёту {accountId}");
 #endif
         return response;
     }

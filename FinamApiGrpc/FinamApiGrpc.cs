@@ -11,25 +11,40 @@ namespace FinamApiGrpc;
 public class FinamApiGrpc : IDisposable
 {
     #region Поля
-    private readonly GrpcChannel _channel;
-    private readonly CallInvoker _invoker;
+    // Адрес сервера Finam API gRPC
     private readonly string _targetUrl = string.Empty;
+    // Секретный токен, созданный на странице https://api.finam.ru/tokens/
     private readonly string _secretKey = string.Empty;
-    private readonly string _accountId = string.Empty;
-    public string? _currentJwtToken = string.Empty;
+    // Идентификатор приложения-источника запросов к серверу. Не значимая для работы сервисов строка
+    private readonly string _sourceAppId = string.Empty;
+
+    // Канал связи
+    private readonly GrpcChannel _channel;
+    // Перехвадчики запросов
+    private readonly CallInvoker _invoker;
+    #endregion
+    #region Свойства
+    /// <summary>
+    /// gwt токен получаемый в процессе авторизации. Действителен 15 минут, затем - требуется обновление.
+    /// </summary>
+    public string? CurrentJwtToken { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Сервис авторизации
+    /// </summary>
+    public AuthClient AuthService { get; init; }
+    /// <summary>
+    /// Сервис счетов 
+    /// </summary>
+    public AccountsClient AccountsService { get; init; }
     #endregion
 
-    #region Публичные поля сервисов Финама
-    public AuthClient AuthService;
-    public AccountsClient AccountsService;
-    #endregion
-
-    public FinamApiGrpc(string targetUrl, string secretKey, string accountId)
+    public FinamApiGrpc(string targetUrl, string secretKey, string sourceAppId)
     {
         #region Проверка входных параметров
-        _secretKey = secretKey ?? throw new ArgumentNullException(nameof(secretKey));
-        _accountId = accountId ?? throw new ArgumentNullException(nameof(accountId));
         _targetUrl = targetUrl ?? throw new ArgumentNullException(nameof(targetUrl));
+        _secretKey = secretKey ?? throw new ArgumentNullException(nameof(secretKey));
+        _sourceAppId = sourceAppId ?? throw new ArgumentNullException(nameof(sourceAppId));
         #endregion
 
         #region Настраиваем политику автоматических повторов (Retry Policy) для Unary-запросов
@@ -46,7 +61,6 @@ public class FinamApiGrpc : IDisposable
             }
         };
         #endregion
-
         #region Инициализируем сетевой gRPC-канал с нашей конфигурацией
         _channel = GrpcChannel.ForAddress(_targetUrl, new GrpcChannelOptions
         {
@@ -57,14 +71,14 @@ public class FinamApiGrpc : IDisposable
         #region Инициализируем перехвадчики и связываем их с каналом
         var exceptionHandlingInterceptor = new ExceptionHandlingInterceptor();
         var logInterceptor = new LoggingInterceptor();
-        var authInterceptor = new AuthInterceptor(() => _currentJwtToken);
+        var authInterceptor = new AuthInterceptor(() => CurrentJwtToken);
 
         _invoker = _channel.Intercept(exceptionHandlingInterceptor).Intercept(logInterceptor).Intercept(authInterceptor);
         #endregion
 
         #region Инициализируем сервисы
-        AuthService = new AuthClient(secretKey, accountId, _invoker, (token) => _currentJwtToken = token);
-        AccountsService = new AccountsClient(accountId, _invoker);
+        AuthService = new AuthClient(secretKey, sourceAppId, _invoker, (token) => CurrentJwtToken = token);
+        AccountsService = new AccountsClient(_invoker);
         #endregion
     }
 

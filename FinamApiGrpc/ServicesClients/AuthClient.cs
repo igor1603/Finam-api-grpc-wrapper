@@ -8,7 +8,7 @@ public class AuthClient : AuthService.AuthServiceClient, IDisposable
 {
     #region Поля
     private readonly string                     _secretKey;
-    private readonly string                     _accountId;
+    private readonly string                     _sourceAppId;
     private string?                             _currentJwtToken;
 
     private CancellationTokenSource?            _streamCts;
@@ -24,31 +24,28 @@ public class AuthClient : AuthService.AuthServiceClient, IDisposable
     /// Конструктор 
     /// </summary>
     /// <param name="secretKey"> Секретный ключ. Генерируется на сайте Финам API https://api.finam.ru/tokens/</param>
-    /// <param name="accountId"> Номер счета без префикса КлФ- только цифры</param>
-    /// <param name="_invoker"> CallInvoker канала</param>
+    /// <param name="sourceAppId"> Номер счета без префикса КлФ- только цифры</param>
+    /// <param name="invoker"> CallInvoker канала</param>
     /// <param name="setJwtToken"> Делегат из FinamApiGrpc, обновляющий jwt токен </param>
     /// <exception cref="ArgumentNullException">Генерируется, когда параметры имеют значение null. </exception>
-    public AuthClient(string secretKey, string accountId, CallInvoker _invoker, Action<string> setJwtToken) : base(_invoker)
+    public AuthClient(string secretKey, string sourceAppId, CallInvoker invoker, Action<string> setJwtToken) : base(invoker)
     {
         _secretKey = secretKey ?? throw new ArgumentNullException(nameof(secretKey));
-        _accountId = accountId ?? throw new ArgumentNullException(nameof(accountId));
-        _authRequest = new AuthRequest { Secret = _secretKey, SourceAppId = _accountId };
-        _subscribeJwtRenewalRequest = new SubscribeJwtRenewalRequest { Secret = _secretKey, SourceAppId = _secretKey };
+        _sourceAppId = sourceAppId ?? throw new ArgumentNullException(nameof(sourceAppId));
+        _authRequest = new AuthRequest { Secret = _secretKey, SourceAppId = _sourceAppId };
+        _subscribeJwtRenewalRequest = new SubscribeJwtRenewalRequest { Secret = _secretKey, SourceAppId = _sourceAppId };
         _streamCts = new CancellationTokenSource();
         _setJwtToken = setJwtToken;
     }
 
     /// <summary>
-    /// 1. Посылает запрос на авторизацию.
-    /// 2. Если autoStartJwtRenewal = true, то вызывает StartJwtRenewalAsync - 
-    /// стартовую процедуру отправления запроса на включение автоматического обновления jwt токена. 
-    /// </summary>
-    /// <param name="autoStartJwtRenewal"> Тип bool. Посылать ли запрос на автоматическое обновление jwt токена. </param>
+    /// Посылает запрос на авторизацию.
     /// <returns> jwt токен </returns>
     public async Task<string> Auth()
     {
         var authResponse = await AuthAsync(_authRequest);
         _currentJwtToken = authResponse.Token;
+        _setJwtToken(_currentJwtToken);
 #if DEBUG
         Console.WriteLine($"[Auth] Прошли авторизацию");
 #endif

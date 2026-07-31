@@ -1,7 +1,7 @@
 {
-  "Finam.Api.gRPC": {
-    "SecretKey":  "",
-    "BaseUrl":    "https://api.finam.ru:443",
-    "AccountId":  ""
-  }  
+  "Connection": {
+    "TargetUrl": "https://api.finam.ru:443",
+    "SecretKey": "",
+    "SourceAppId": ""
+  }
 }

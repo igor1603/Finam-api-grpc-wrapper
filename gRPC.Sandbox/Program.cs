@@ -15,7 +15,7 @@ internal class Program
     {
         try
         {
-            #region 1. Проверяем наличия файлов параметров в выходной папке проекта
+            #region Проверяем наличия файлов параметров в выходной папке проекта
             var basePath = AppContext.BaseDirectory;
             var settingsPath = Path.Combine(basePath, "settings.json");
             var settingsLocalPath = Path.Combine(basePath, "settings.local.json");
@@ -34,14 +34,14 @@ internal class Program
                 return;
             }
             #endregion
-            #region 2. Загружаем входные параметры FinamApiGrpc из файлов
+            #region Загружаем входные параметры FinamApiGrpc из файлов
             var config = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
             .AddJsonFile("settings.json", optional: false)
             .AddJsonFile("settings.local.json", optional: true)
             .Build();
 
-            var settings = config.GetSection("Finam.Api.gRPC").Get<Connection>()
+            var settings = config.GetSection("Connection").Get<Connection>()
                 ?? throw new Exception("Секция Connection не найдена в конфигурации.");
 
             if (string.IsNullOrEmpty(settings.SecretKey))
@@ -50,57 +50,51 @@ internal class Program
                 Console.ReadKey();
                 return;
             }
-
-            string mytargetUrl = settings.BaseUrl;
-            string mySecretKey = settings.SecretKey;
-            string myAccountId = settings.AccountId;
             #endregion
 
-            #region 3. Инициализируем наш клиент-обертку
+            #region Инициализируем клиента Финам grpc
             Console.WriteLine("[Песочница] Начинаем работу. Инициализируем клиента.");
-            using var Services = new FinamApiGrpc.FinamApiGrpc(
-                targetUrl: mytargetUrl,
-                secretKey: mySecretKey,
-                accountId: myAccountId
+            using var FinamGrpcServices = new FinamApiGrpc.FinamApiGrpc(
+                targetUrl: settings.TargetUrl,
+                secretKey: settings.SecretKey,
+                sourceAppId: settings.SourceAppId
             );
             #endregion
 
-            #region 4. Запускаем авторизацию
+            // Авторизации - AuthService
+            #region Запускаем авторизацию
             Console.WriteLine("\n[Песочница] Заходим в авторизацию.");
-            await Services.AuthService.Auth();
+            await FinamGrpcServices.AuthService.Auth();
             #endregion
-
-            #region 5. Запускаем автоматическое продление jwt токена
+            #region Запускаем автоматическое продление jwt токена
             Console.WriteLine("\n[Песочница] Запускает автоматическое продление jwt токена.");
-            await Services.AuthService.SubscribeJwtRenewal();
+            await FinamGrpcServices.AuthService.SubscribeJwtRenewal();
             #endregion
-
+            #region Получаем детали токена
             Console.WriteLine("\n[Песочница] Нажатие любой клавиши - переход к получению деталей токена jwt");
             Console.ReadKey();
-
-            #region 6. Получаем детали токена
             Console.WriteLine("\n[Песочница] Запустили получение деталей токена jwt");
-            var tokenDetailsResponse = await Services.AuthService.TokenDetails();
+            var tokenDetailsResponse = await FinamGrpcServices.AuthService.TokenDetails();
             PrintTokenDetails(tokenDetailsResponse);
             Console.WriteLine("[Песочница] Получили детали токена jwt");
             #endregion
 
+            // Счета - AccountsService
+            #region Получаем информацию по счёту
             Console.WriteLine("\n[Песочница] Нажатие любой клавиши - переход к получению информации по счету");
             Console.ReadKey();
-
-            #region 7 Получаем информацию по счёту
             Console.WriteLine("\n[Песочница] Получаем информацию по счёту.");
-            var accountResponse = await Services.AccountsService.GetAccount();
+            var accountResponse = await FinamGrpcServices.AccountsService.GetAccount("143047");
             PrintAccountInformation(accountResponse);
             Console.WriteLine($"[Песочница] Получили информацию по счёту");
             #endregion
 
+            // Останавливка автоматического продления jwt токена
+            #region Останавливаем автоматическое обновление jwt токена
             Console.WriteLine("\n[Песочница] Нажатие любой клавиши - переход к останове автоматического обновления jwt токена");
             Console.ReadKey();
-
-            #region Останавливаем автоматическое обновление jwt токена
             Console.WriteLine("\n[Песочница] Останавливаем автоматическое продление jwt токена");
-            await Services.AuthService.UnsubscribeJwtRenewal();
+            await FinamGrpcServices.AuthService.UnsubscribeJwtRenewal();
             #endregion
 
             Console.WriteLine("\n[Песочница] Нажатие любой клавиши - выход из try");

@@ -4,8 +4,8 @@
     /// </summary>
     public class Connection
     {
-        public string BaseUrl { get; set; } = string.Empty;
+        public string TargetUrl { get; set; } = string.Empty;
         public string SecretKey { get; set; } = string.Empty;
-        public string AccountId { get; set; } = string.Empty;
+        public string SourceAppId { get; set; } = string.Empty;
     }
 
