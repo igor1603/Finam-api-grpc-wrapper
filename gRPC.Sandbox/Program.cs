@@ -108,6 +108,15 @@ internal class Program
             var transactionsResponse = await FinamGrpcServices.AccountsService.Transactions("143047", limit: 10);
             PrintTransactionsHistory(transactionsResponse);
             #endregion
+            #region Подписка на обновления аккаунта
+            Console.WriteLine("\n[Песочница] Нажатие любой клавиши - переход к подписке на обновления аккаунта");
+            Console.ReadKey();
+            Console.WriteLine("\n[Песочница] Подписываемся на обновления аккаунта.");
+            await FinamGrpcServices.AccountsService.SubscribeAccount("143047", PrintAccountInformation);
+            Console.WriteLine("[Песочница] Подписка активна. Нажмите любую клавишу, чтобы остановить.");
+            Console.ReadKey();
+            await FinamGrpcServices.AccountsService.UnsubscribeAccount();
+            #endregion
 
             // Останавливка автоматического продления jwt токена
             #region Останавливаем автоматическое обновление jwt токена

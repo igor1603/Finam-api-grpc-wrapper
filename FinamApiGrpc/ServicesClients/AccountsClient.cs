@@ -8,6 +8,9 @@ namespace FinamApiGrpc.ServicesClients;
 public class AccountsClient(CallInvoker invoker) : AccountsService.AccountsServiceClient(invoker), IDisposable
 {
     #region Поля
+    private CancellationTokenSource? _subscriptionCts;
+    private Task? _subscriptionTask;
+    private Action<GetAccountResponse>? _subscriptionHandler;
     #endregion
 
     #region Свойства
@@ -119,6 +122,103 @@ public class AccountsClient(CallInvoker invoker) : AccountsService.AccountsServi
         return response;
     }
 
+    /// <summary>
+    /// Подписывается на поток обновлений информации по конкретному аккаунту.
+    /// </summary>
+    /// <param name="accountId"> Идентификатор аккаунта. </param>
+    /// <param name="onAccountUpdate"> Обработчик каждого обновления. </param>
+    /// <param name="cancellationToken"> Токен отмены подписки. </param>
+    /// <returns> Задача, завершающаяся сразу после запуска подписки. </returns>
+    public Task SubscribeAccount(string accountId, Action<GetAccountResponse> onAccountUpdate, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(accountId))
+        {
+            throw new InvalidOperationException("Невозможно подписаться на обновления аккаунта: accountId пуст или не инициализирован.");
+        }
+
+        if (onAccountUpdate is null)
+        {
+            throw new ArgumentNullException(nameof(onAccountUpdate));
+        }
+
+        if (_subscriptionTask is { IsCompleted: false })
+        {
+            Console.WriteLine("[Accounts] Подписка уже активна.");
+            return Task.CompletedTask;
+        }
+
+#if DEBUG
+        Console.WriteLine($"[Accounts] Запускаем подписку на обновления счёта {accountId}");
+#endif
+
+        _subscriptionCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _subscriptionHandler = onAccountUpdate;
+        _subscriptionTask = Task.Run(() => StartSubscribeAccount(accountId, _subscriptionCts.Token));
+
+        return Task.CompletedTask;
+    }
+    /// <summary>
+    /// Останавливает активную подписку на обновления аккаунта.
+    /// </summary>
+    /// <returns> Задача, представляющая собой асинхронную операцию. </returns>
+    public async Task UnsubscribeAccount()
+    {
+        _subscriptionCts?.Cancel();
+
+        if (_subscriptionTask != null)
+        {
+            await _subscriptionTask.ConfigureAwait(false);
+        }
+
+        _subscriptionCts?.Dispose();
+        _subscriptionCts = null;
+        _subscriptionTask = null;
+        _subscriptionHandler = null;
+    }
+
+    public void Dispose()
+    {
+        _subscriptionCts?.Cancel();
+        _subscriptionCts?.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
+    private async Task StartSubscribeAccount(string accountId, CancellationToken cancellationToken)
+    {
+        var request = new GetAccountRequest { AccountId = accountId };
+
+        try
+        {
+            using var streamingCall = base.SubscribeAccount(request, cancellationToken: cancellationToken);
+
+            if (streamingCall?.ResponseStream == null)
+            {
+                throw new InvalidOperationException("[Accounts] Сервер Финам вернул пустой поток ответов.");
+            }
+
+            await foreach (var response in streamingCall.ResponseStream.ReadAllAsync(cancellationToken))
+            {
+                if (response is not null)
+                {
+                    _subscriptionHandler?.Invoke(response);
+                }
+            }
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.Cancelled)
+        {
+#if DEBUG
+            Console.WriteLine("[Accounts] Подписка на обновления аккаунта остановлена пользователем.");
+#endif
+        }
+        catch (RpcException rpcEx)
+        {
+#if DEBUG
+            Console.WriteLine($"[Accounts] Ошибка подписки на обновления аккаунта: {rpcEx.StatusCode} | {rpcEx.Status.Detail}");
+#endif
+            throw;
+        }
+    }
+
     private static Interval CreateDefaultInterval()
     {
         var now = System.DateTime.UtcNow;
@@ -132,8 +232,4 @@ public class AccountsClient(CallInvoker invoker) : AccountsService.AccountsServi
     /// <summary>
     /// Освобождает ресурсы клиента.
     /// </summary>
-    public void Dispose()
-    {
-        GC.SuppressFinalize(this);
-    }
 }
