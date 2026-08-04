@@ -4,6 +4,7 @@ using Grpc.Tradeapi.V1.Accounts;
 //using Grpc.
 using Grpc.Tradeapi.V1.Auth;
 using Microsoft.Extensions.Configuration;
+using Microsoft.VisualBasic;
 using static Grpc.Tradeapi.V1.Auth.MDPermission.Types;
 
 internal class Program
@@ -112,7 +113,7 @@ internal class Program
             Console.WriteLine("\n[Песочница] Нажатие любой клавиши - переход к подписке на обновления аккаунта");
             Console.ReadKey();
             Console.WriteLine("\n[Песочница] Подписываемся на обновления аккаунта.");
-            await FinamGrpcServices.AccountsService.SubscribeAccount("143047", PrintAccountInformation);
+            await FinamGrpcServices.AccountsService.SubscribeAccount("143047", PrintRenewalAccountInformation);
             Console.WriteLine("[Песочница] Подписка активна. Нажмите любую клавишу, чтобы остановить.");
             Console.ReadKey();
             await FinamGrpcServices.AccountsService.UnsubscribeAccount();
@@ -203,16 +204,6 @@ internal class Program
             }
         }
     }
-
-    public static void PrintAccountInformation(GetAccountResponse information)
-    {
-        Console.WriteLine("\nИнформация по аккаунту");
-
-        Console.WriteLine($"ID: {information.AccountId}");
-        Console.WriteLine($"Тип: {information.Type}");
-        Console.WriteLine($"Статус: {information.Status}");
-    }
-
     public static void PrintTradesHistory(TradesResponse tradesResponse)
     {
         Console.WriteLine("\nИстория сделок");
@@ -238,7 +229,6 @@ internal class Program
             Console.WriteLine();
         }
     }
-
     public static void PrintTransactionsHistory(TransactionsResponse transactionsResponse)
     {
         Console.WriteLine("\nИстория транзакций");
@@ -273,7 +263,58 @@ internal class Program
             Console.WriteLine();
         }
     }
+    public static void PrintAccountInformation(GetAccountResponse information)
+    {
+        Console.WriteLine("\nИнформация по аккаунту");
 
+        Console.WriteLine($"ID: {information.AccountId}");
+        Console.WriteLine($"Тип: {information.Type}");
+        Console.WriteLine($"Статус: {information.Status}");
+    }
+    public static void PrintRenewalAccountInformation(GetAccountResponse information)
+    {
+        Console.WriteLine("\nОбновление аккаунта");
+
+        Console.WriteLine($"Идентификатор: {information.AccountId}");
+        Console.WriteLine($"Доступные средства: {FormatDecimal(information.Equity)}");
+        Console.WriteLine($"Нереализованная прибыль: {FormatDecimal(information.UnrealizedProfit)}");
+
+        var forts = information.PortfolioForts;
+        if (forts is not null)
+        {
+            Console.WriteLine("FORTS:");
+            Console.WriteLine($"  Собственные средства: {FormatDecimal(forts.AvailableCash)}");
+            Console.WriteLine($"  Минимальная маржа: {FormatDecimal(forts.MoneyReserved)}");
+        }
+        else
+        {
+            Console.WriteLine("FORTS: данные отсутствуют.");
+        }
+
+        Console.WriteLine("Позиции:");
+        if (information.Positions.Count == 0)
+        {
+            Console.WriteLine("  отсутствуют.");
+            return;
+        }
+
+        foreach (var position in information.Positions)
+        {
+            Console.WriteLine($"  Символ инструмента: {position.Symbol}");
+            Console.WriteLine($"  Количество: {FormatDecimal(position.Quantity)}");
+            Console.WriteLine($"  Средняя цена: {FormatDecimal(position.AveragePrice)}");
+            Console.WriteLine($"  Текущая цена: {FormatDecimal(position.CurrentPrice)}");
+            Console.WriteLine($"  Поддерживающее гарантийное обеспечение: {FormatDecimal(position.MaintenanceMargin)}");
+            Console.WriteLine($"  Прибыль/убыток за текущий день: {FormatDecimal(position.DailyPnl)}");
+            Console.WriteLine($"  Нереализованная прибыль: {FormatDecimal(position.UnrealizedPnl)}");
+            Console.WriteLine();
+        }
+    }
+
+    private static string FormatDecimal(Google.Type.Decimal? value)
+    {
+        return string.IsNullOrWhiteSpace(value?.Value) ? "не указано" : value.Value;
+    }
     // Шаблон нового теста
 
     //Console.WriteLine("\n[Песочница] Нажатие любой клавиши - ... ");
