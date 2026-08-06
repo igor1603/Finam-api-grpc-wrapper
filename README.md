@@ -1,86 +1,80 @@
-###### **Ссылки на источники информации по Finam APE gRPC.**
+##### Общие положения
 
 
 
-**Finam API** - https://api.finam.ru
-
-**Finam API Начало работы** - https://api.finam.ru/blog/start-tradeapi
-
-**Finam API блог** - https://api.finam.ru/blog
-
-**Финам документация gRPC** - https://api.finam.ru/docs/grpc
 
 
 
-**Репозиторий Finam API gRPC на github** - https://github.com/FinamWeb/finam-trade-api
 
-**Репозиторий Finam MCP сервер на github** https://github.com/FinamWeb/finam-mcp
-
-**Репозиторий моей библиотеки-обертки на github** - https://github.com/igor1603/Finam-api-grpc-wrapper
+##### Ссылки на источники информации по Finam APE gRPC
 
 
 
-**Репозиторий gRPC на github -** https://github.com/grpc/grpc-dotnet
+Finam API - https://api.finam.ru
+
+Finam API Начало работы - https://api.finam.ru/blog/start-tradeapi
+
+Finam API блог - https://api.finam.ru/blog
+
+Финам документация gRPC - https://api.finam.ru/docs/grpc
+
+
+
+Репозиторий Finam API gRPC на github - https://github.com/FinamWeb/finam-trade-api
+
+Репозиторий Finam MCP сервер на github https://github.com/FinamWeb/finam-mcp
+
+Репозиторий моей библиотеки-обертки на github - https://github.com/igor1603/Finam-api-grpc-wrapper
+
+
+
+Репозиторий gRPC на github - https://github.com/grpc/grpc-dotnet
 
 https://github.com/grpc/grpc/blob/master/src/csharp/README.md
 
 
 
-**gRPC -** https://grpc.io/ только vpn
+gRPC - https://grpc.io/ только vpn
 
 
 
 
 
-
-
-###### **Ссылки на описания команд сервисов Finam gRPC**
-
-###### 
-
-\# Trade API
+##### Ссылки на описания команд сервисов Finam gRPC
 
 
 
-\*\*Protocol:\*\* grpc
+Trade API
+
+Protocol: grpc
+
+Servers
 
 
 
-\## Servers
+Authentication
 
-
-
-| URL | Protocol | Description |
-
-| --- | --- | --- |
-
-| api.finam.ru | gRPC | production |
-
-
-
-\## Authentication
-
-
-
-\*\*jwt-token\*\* (apiKey)
+jwt-token (apiKey)
 
 In: metadata
 
 
 
-\## AuthService
 
 
 
-\- \[Auth](https://api.finam.ru/docs/grpc/auth.md): Получение JWT токена из API токена
 
-\- \[TokenDetails](https://api.finam.ru/docs/grpc/tokendetails.md): Получение информации о токене сессии
-
-\- \[SubscribeJwtRenewal](https://api.finam.ru/docs/grpc/subscribejwtrenewal.md): Подписка на обновление JWT токена. Стрим метод
+###### AuthService
 
 
 
-\## AccountsService
+* \[Auth](https://api.finam.ru/docs/grpc/auth.md): Получение JWT токена из API токена
+* \[TokenDetails](https://api.finam.ru/docs/grpc/tokendetails.md): Получение информации о токене сессии
+* \[SubscribeJwtRenewal](https://api.finam.ru/docs/grpc/subscribejwtrenewal.md): Подписка на обновление JWT токена. Стрим метод
+
+
+
+###### AccountsService
 
 
 
@@ -94,7 +88,7 @@ In: metadata
 
 
 
-\## OrdersService
+###### OrdersService
 
 
 
@@ -116,7 +110,7 @@ In: metadata
 
 
 
-\## MarketDataService
+###### MarketDataService
 
 
 
@@ -138,7 +132,7 @@ In: metadata
 
 
 
-\## AssetsService
+###### AssetsService
 
 
 
@@ -162,7 +156,7 @@ In: metadata
 
 
 
-\## UsageMetricsService
+###### UsageMetricsService
 
 
 
@@ -170,7 +164,7 @@ In: metadata
 
 
 
-\## ReportsService
+###### ReportsService
 
 
 
@@ -182,7 +176,7 @@ In: metadata
 
 
 
-\## CorporateActionsService
+###### CorporateActionsService
 
 
 
@@ -196,33 +190,9 @@ In: metadata
 
 
 
-\## See also
+###### See also
 
 
 
 \- \[Tokens](https://api.finam.ru/tokens.md): API token management
-
-
-
-
-
-
-
-###### **Чат с Copilot**
-
-
-
-Теперь прочитайте все файлы .cs в проекте и посмотри на страницу сервисов Финама #https://api.finam.ru/docs/grpc/. 
-
-Дело в том, что библиотеку-обертку FinamApiGrpc я хочу построит так, чтобы пользователь, когда будет использовать её, оперировал той же иерархией вызовов. какую он видит на сайте https://api.finam.ru/docs/grpc.  
-
-
-
-На данный момент я сделал весь сервис AuthService. Это команды Auth, SubscribeJwtRenewal, TokenDetails. С той лишь разницей, что решил добавлять к команде подписки на стрим сервера еще и команду отписки. В данной случае - это UnsubscribeJwtRenewal. Я хочу, чтобы вы продолжили, сохраняя мой стиль, оформление файлов сервисов и основываясь на изложенной выше идеи, - продолжили заполнять кодом файлы сервисов, находящиеся в папке ServicesClients. Сейчас это пустые файлы, кроме AuthClient. 
-
-
-
-Начнем по командам, чтобы я мог контролировать ход работы. Первый шаг - команда GetAccount сервиса AccountsService. Составьте план работы по этому шагу.
-
-
 
