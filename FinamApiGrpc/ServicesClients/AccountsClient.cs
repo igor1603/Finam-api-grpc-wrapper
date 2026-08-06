@@ -185,6 +185,9 @@ public class AccountsClient(
         _subscriptionHandler = null;
     }
 
+    /// <summary>
+    /// Освобождает ресурсы клиента.
+    /// </summary>
     public void Dispose()
     {
         _subscriptionCts?.Cancel();
@@ -325,7 +328,4 @@ public class AccountsClient(
         };
     }
 
-    /// <summary>
-    /// Освобождает ресурсы клиента.
-    /// </summary>
 }

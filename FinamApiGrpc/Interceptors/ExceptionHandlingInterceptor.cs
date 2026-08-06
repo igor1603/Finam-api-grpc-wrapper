@@ -21,7 +21,7 @@ public class ExceptionHandlingInterceptor : Interceptor
         AsyncUnaryCallContinuation<TRequest, TResponse> continuation)
     {
         var stopwatch = Stopwatch.StartNew();
-        Console.WriteLine($"[RETRY] Начали вызов {context.Method.FullName}");
+        Console.WriteLine($"[EXCEPT] Начали вызов {context.Method.FullName}");
 
         var interceptedResponseTask = ExecuteWithRetryAsync(request, context, continuation, stopwatch);
 
@@ -53,14 +53,14 @@ public class ExceptionHandlingInterceptor : Interceptor
                 var response = await call.ResponseAsync;
 
                 stopwatch.Stop();
-                Console.WriteLine($"[RETRY] Завершили вызов {context.Method.FullName} | Длительность: {stopwatch.ElapsedMilliseconds} мс");
+                Console.WriteLine($"[EXCEPT] Завершили вызов {context.Method.FullName} | Длительность: {stopwatch.ElapsedMilliseconds} мс");
 
                 return response;
             }
             catch (RpcException rpcEx) when (IsTransientError(rpcEx.StatusCode) && attempt < _maxRetryCount)
             {
                 Console.WriteLine(
-                    $"[RETRY] Повтор вызова {context.Method.FullName} | Попытка {attempt}/{_maxRetryCount} | Статус: {rpcEx.StatusCode}");
+                    $"[EXCEPT] Повтор вызова {context.Method.FullName} | Попытка {attempt}/{_maxRetryCount} | Статус: {rpcEx.StatusCode}");
 
                 await Task.Delay(_retryDelay);
             }
@@ -69,7 +69,7 @@ public class ExceptionHandlingInterceptor : Interceptor
                 stopwatch.Stop();
 
                 Console.WriteLine(
-                    $"[RETRY] Ошибка вызова {context.Method.FullName} | Статус: {rpcEx.StatusCode} | Длительность: {stopwatch.ElapsedMilliseconds} мс | {rpcEx.Status.Detail}");
+                    $"[EXCEPT] Ошибка вызова {context.Method.FullName} | Статус: {rpcEx.StatusCode} | Длительность: {stopwatch.ElapsedMilliseconds} мс | {rpcEx.Status.Detail}");
 
                 throw;
             }
@@ -78,7 +78,7 @@ public class ExceptionHandlingInterceptor : Interceptor
                 stopwatch.Stop();
 
                 Console.WriteLine(
-                    $"[RETRY] Ошибка вызова {context.Method.FullName} | Длительность: {stopwatch.ElapsedMilliseconds} мс | {ex.Message}");
+                    $"[EXCEPT] Ошибка вызова {context.Method.FullName} | Длительность: {stopwatch.ElapsedMilliseconds} мс | {ex.Message}");
                 
                 throw;
             }
