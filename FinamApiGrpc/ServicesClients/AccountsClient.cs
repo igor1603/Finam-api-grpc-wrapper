@@ -3,26 +3,44 @@ using Google.Type;
 using Grpc.Core;
 using Grpc.Tradeapi.V1.Accounts;
 
+using FinamApiGrpc.Streams;
+
 namespace FinamApiGrpc.ServicesClients;
 
-public class AccountsClient(
-    CallInvoker invoker,
-    int reconnectBaseDelaySeconds = 2,
-    int reconnectMaxDelaySeconds = 65,
-    int? maxReconnectAttempts = null) : AccountsService.AccountsServiceClient(invoker), IDisposable
+public class AccountsClient : AccountsService.AccountsServiceClient, IDisposable
 {
     #region Поля
     private CancellationTokenSource? _subscriptionCts;
     private Task? _subscriptionTask;
     private Action<GetAccountResponse>? _subscriptionHandler;
 
-    private readonly int _reconnectBaseDelaySeconds = reconnectBaseDelaySeconds;
-    private readonly int _reconnectMaxDelaySeconds = reconnectMaxDelaySeconds;
-    private readonly int? _maxReconnectAttempts = maxReconnectAttempts;
+    private readonly StreamReconnectPolicy _streamReconnectPolicy;
+    private readonly ServerStreamingLoop<GetAccountRequest, GetAccountResponse> _subscriptionStreamLoop;
     #endregion
 
-    #region Свойства
-    #endregion
+    public AccountsClient(
+        CallInvoker invoker,
+        int reconnectBaseDelaySeconds = 2,
+        int reconnectMaxDelaySeconds = 65,
+        int? maxReconnectAttempts = null) : base(invoker)
+    {
+        _streamReconnectPolicy = new StreamReconnectPolicy
+        {
+            BaseDelaySeconds = reconnectBaseDelaySeconds,
+            MaxDelaySeconds = reconnectMaxDelaySeconds,
+            MaxAttempts = maxReconnectAttempts
+        };
+
+        _subscriptionStreamLoop = new ServerStreamingLoop<GetAccountRequest, GetAccountResponse>(
+            _streamReconnectPolicy,
+            runForever: true,
+            logger: message =>
+            {
+#if DEBUG
+                Console.WriteLine(message);
+#endif
+            });
+    }
 
     /// <summary>
     /// Получает информацию по конкретному аккаунту.
@@ -47,7 +65,6 @@ public class AccountsClient(
 
         return response;
     }
-
     /// <summary>
     /// Получает историю сделок по конкретному аккаунту.
     /// </summary>
@@ -88,7 +105,6 @@ public class AccountsClient(
 
         return response;
     }
-
     /// <summary>
     /// Получает историю транзакций по конкретному аккаунту.
     /// </summary>
@@ -131,7 +147,7 @@ public class AccountsClient(
     }
 
     /// <summary>
-    /// Подписывается на поток обновлений информации по конкретному аккаунту.
+    /// Включает подписку не обновление информации по аккаунту.
     /// </summary>
     /// <param name="accountId"> Идентификатор аккаунта. </param>
     /// <param name="onAccountUpdate"> Обработчик каждого обновления. </param>
@@ -143,12 +159,10 @@ public class AccountsClient(
         {
             throw new InvalidOperationException("Невозможно подписаться на обновления аккаунта: accountId пуст или не инициализирован.");
         }
-
         if (onAccountUpdate is null)
         {
             throw new ArgumentNullException(nameof(onAccountUpdate));
         }
-
         if (_subscriptionTask is { IsCompleted: false })
         {
             Console.WriteLine("[Accounts] Подписка уже активна.");
@@ -165,9 +179,8 @@ public class AccountsClient(
 
         return Task.CompletedTask;
     }
-
     /// <summary>
-    /// Останавливает активную подписку на обновления аккаунта.
+    /// Выключает подписку на обновление информации по аккаунту.
     /// </summary>
     /// <returns> Задача, представляющая собой асинхронную операцию. </returns>
     public async Task UnsubscribeAccount()
@@ -199,125 +212,20 @@ public class AccountsClient(
     {
         var request = new GetAccountRequest { AccountId = accountId };
 
-        var reconnectAttempts = 0;
-        var currentDelaySeconds = _reconnectBaseDelaySeconds;
-
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            try
+        await _subscriptionStreamLoop.RunAsync(
+            request,
+            (req, ct) => base.SubscribeAccount(req, cancellationToken: ct),
+            (response, ct) =>
             {
-#if DEBUG
-                Console.WriteLine($"[Accounts] Открываем стрим обновлений аккаунта {accountId}...");
-#endif
-
-                using var streamingCall = base.SubscribeAccount(request, cancellationToken: cancellationToken);
-
-                if (streamingCall?.ResponseStream == null)
+                if (response is not null)
                 {
-                    throw new InvalidOperationException("[Accounts] Сервер Финам вернул пустой поток ответов.");
+                    _subscriptionHandler?.Invoke(response);
                 }
 
-                await foreach (var response in streamingCall.ResponseStream.ReadAllAsync(cancellationToken))
-                {
-                    if (response is not null)
-                    {
-                        currentDelaySeconds = _reconnectBaseDelaySeconds;
-                        reconnectAttempts = 0;
-                        _subscriptionHandler?.Invoke(response);
-                    }
-                }
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-#if DEBUG
-                Console.WriteLine("[Accounts] Подписка на обновления аккаунта остановлена пользователем.");
-#endif
-                break;
-            }
-            catch (RpcException ex) when (ex.StatusCode == StatusCode.Cancelled)
-            {
-#if DEBUG
-                Console.WriteLine("[Accounts] Подписка на обновления аккаунта остановлена пользователем.");
-#endif
-                break;
-            }
-            catch (RpcException rpcEx) when (IsTransientRpcStatus(rpcEx.StatusCode))
-            {
-#if DEBUG
-                Console.WriteLine($"[Accounts] Временная ошибка gRPC в стриме: {rpcEx.StatusCode} | {rpcEx.Status.Detail}");
-#endif
-
-                if (ShouldStopReconnect(reconnectAttempts, cancellationToken))
-                {
-                    throw;
-                }
-
-                reconnectAttempts++;
-                await WaitBeforeReconnect(currentDelaySeconds, cancellationToken);
-                currentDelaySeconds = Math.Min(currentDelaySeconds * 2, _reconnectMaxDelaySeconds);
-            }
-            catch (RpcException rpcEx)
-            {
-#if DEBUG
-                Console.WriteLine($"[Accounts] Неподдерживаемая ошибка gRPC в стриме: {rpcEx.StatusCode} | {rpcEx.Status.Detail}");
-#endif
-                throw;
-            }
-            catch (Exception ex)
-            {
-#if DEBUG
-                Console.WriteLine($"[Accounts] Непредвиденная ошибка в стриме обновлений аккаунта: {ex.Message}");
-#endif
-
-                if (ShouldStopReconnect(reconnectAttempts, cancellationToken))
-                {
-                    throw;
-                }
-
-                reconnectAttempts++;
-                await WaitBeforeReconnect(currentDelaySeconds, cancellationToken);
-                currentDelaySeconds = Math.Min(currentDelaySeconds * 2, _reconnectMaxDelaySeconds);
-            }
-        }
+                return Task.CompletedTask;
+            },
+            cancellationToken);
     }
-
-    private async Task WaitBeforeReconnect(int delaySeconds, CancellationToken cancellationToken)
-    {
-        if (delaySeconds <= 0)
-        {
-            return;
-        }
-
-#if DEBUG
-        Console.WriteLine($"[Accounts] Ожидание перед повторным подключением: {delaySeconds} сек...");
-#endif
-
-        await Task.Delay(TimeSpan.FromSeconds(delaySeconds), cancellationToken);
-    }
-    private bool ShouldStopReconnect(int reconnectAttempts, CancellationToken cancellationToken)
-    {
-        if (cancellationToken.IsCancellationRequested)
-        {
-            return true;
-        }
-
-        if (_maxReconnectAttempts is null)
-        {
-            return false;
-        }
-
-        return reconnectAttempts >= _maxReconnectAttempts.Value;
-    }
-    private static bool IsTransientRpcStatus(StatusCode statusCode)
-    {
-        return statusCode is
-            StatusCode.Unavailable or
-            StatusCode.DeadlineExceeded or
-            StatusCode.Internal or
-            StatusCode.ResourceExhausted or
-            StatusCode.Unknown;
-    }
-
     private static Interval CreateDefaultInterval()
     {
         var now = System.DateTime.UtcNow;
@@ -327,5 +235,4 @@ public class AccountsClient(
             EndTime = Timestamp.FromDateTime(now)
         };
     }
-
 }
