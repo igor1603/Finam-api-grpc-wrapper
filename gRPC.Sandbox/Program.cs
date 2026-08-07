@@ -162,16 +162,21 @@ internal class Program
         Console.WriteLine($"Режим 'Только чтение' (Readonly): {(details.Readonly ? "ДА (Торговля заблокирована)" : "НЕТ (Робот может торговать)")}");
 
         // 2. РАБОТА С МАССИВОМ ДОСТУПНЫХ СЧЕТОВ (RepeatedField<string>)
-        Console.WriteLine($"\nДоступные торговые счета (Всего: {details.AccountIds.Count}):");
+        Console.Write($"\nДоступные торговые счета. Всего {details.AccountIds.Count}.\nНомера: {details.AccountIds.ElementAt(0)}");
         foreach (string accountId in details.AccountIds)
         {
-            Console.WriteLine($"  - Счёт: {accountId}");
+            if (accountId != details.AccountIds.ElementAt(0)) {
+                Console.Write($", {accountId}");
+            }
         }
+        Console.WriteLine();
 
         // 3. РАБОТА СО СЛОЖНЫМ ВЛОЖЕННЫМ МАССИВОМ (RepeatedField<MDPermission>)
         Console.WriteLine($"\nРазрешения на рыночные данные (Всего: {details.MdPermissions.Count}):");
+        int countIteration = 0;
         foreach (MDPermission permission in details.MdPermissions)
         {
+            if (++countIteration > 1) break;
             Console.WriteLine($"  ----------------------------------------");
             Console.WriteLine($"  Биржа (MIC):      {permission.Mic}");
             Console.WriteLine($"  Страна/Континент: {permission.Country} / {permission.Continent}");
@@ -180,7 +185,7 @@ internal class Program
 
             // РАБОТА С ENUM (QuoteLevel)
             // В C# это будет выглядеть как проверка именованных констант
-            Console.Write(" Уровень стакана: ");
+            Console.Write("  Уровень стакана: ");
             switch (permission.QuoteLevel)
             {
                 case QuoteLevel.DepthOfBook:
