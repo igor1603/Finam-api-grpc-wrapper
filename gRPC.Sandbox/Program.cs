@@ -1,10 +1,9 @@
 ﻿using Google.Protobuf.WellKnownTypes;
 using Google.Type;
 using Grpc.Tradeapi.V1.Accounts;
-//using Grpc.
 using Grpc.Tradeapi.V1.Auth;
 using Microsoft.Extensions.Configuration;
-using Microsoft.VisualBasic;
+//using Microsoft.VisualBasic;
 using static Grpc.Tradeapi.V1.Auth.MDPermission.Types;
 
 internal class Program

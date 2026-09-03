@@ -2,27 +2,39 @@
 
 
 
-Решение **Trading**, располагающийся в папке D:\\Programming\\CS\\FinamAPI\\gRPC\\Trading, - это проект библиотеки-обёртки сервисов Финам API gRPC на C# разрабатываемый в Visual Studio.
+Решение **Trading**, расположенное папке D:\\Programming\\CS\\FinamAPI\\gRPC\\Trading, - это проект библиотеки-обёртки сервисов Финам API gRPC на C# разрабатываемый в Visual Studio.
 
 
 
-В папке решения - два проекта: 
+**Финам** - брокер, предоставляющий своим клиентам доступ к биржевой и торговой информации посредством различных API. Финам API gRPC - один из таких API, использующий gRPC для быстрых и надежных подключений к биржевым потокам данных.
+
+
+
+В папке решения - два проекта:
 
 * **FinamApiGrpc** - сама библиотека;
 * **gRPC.Sandbox** - консольное приложение в котором тестируется код библиотеки.
 
 
 
-В папке проекта FinamApiGrpc **-** D:\\Programming\\CS\\FinamAPI\\gRPC\\Trading\\FinamApiGrpc - 
+В папке проекта FinamApiGrpc **-** D:\\Programming\\CS\\FinamAPI\\gRPC\\Trading\\FinamApiGrpc -
 
-есть папки:
+есть несколько значимых элементов решения - подпапки:
 
 * **ServicesClients** - классы сервисов, в каждом из которых публичные методы - команды сервисов;
 * **Interceptors** - классы интерцепторов;
 * **Streams** - универсальные классы иерархии стримов: unary, server stream и bidirectional stream. Стримы используются в большинстве сервисов.
-* **Protos** - .proto файлы (нужно смотреть на самый нижний слой вложенности папок, имена .proto файлов должны содержать слово service \[название сервиса]\_service.proto. Например, accounts\_service.proto, assets\_service.proto, 
+* **Protos** - .proto файлы (нужно смотреть на самый нижний слой вложенности папок, имена .proto файлов должны содержать слово service \[название сервиса]\_service.proto. Например, accounts\_service.proto, assets\_service.proto и т.д.,
 
-\- и файл **FinamApiGrpc.cs** с классом FinamApiGrpc, являющимся точкой инициализазии библиотеки.
+\- файл **FinamApiGrpc.cs** с классом FinamApiGrpc, являющимся точкой входа и инициализации библиотеки.
+
+&#x20;
+
+Одной из важных идей этого моего проекта является задача **сохранить для пользователя библиотеки, знакомые с сайта Finam API gRPC структуру и названия** шагов и элементов\*\*,\*\* используемых в процессе получения данных. Это соображение и легло в основу структуры классов проекта.
+
+
+
+Например, если на странице **Finam API gRPC** существует сервис **OrdersService,** в котором обслуживается запрос на выставления заявки, называющийся **PlaceOrder**, то желательно, чтобы вызов соответствующего метода из библиотеки был чем-то вроде **FinamApiGrpc.OrdersService.PlaceOrder.**
 
 
 
@@ -66,8 +78,6 @@ https://github.com/grpc/grpc/blob/master/src/csharp/README.md
 
 
 
-
-
 На сайте Финам API, на странице документации gRPC в левой панели перечисляются сервисы и команды каждого из сервисов, а справа располагается документация и примеры.
 
 
@@ -80,7 +90,7 @@ https://github.com/grpc/grpc/blob/master/src/csharp/README.md
 
 
 
-Ниже представлены все сервисы - это заголовки блоков; ниже в каждом блоке - команды сервиса, адреса файлов с детальным описание и краткие описания команд.
+Ниже представлены все сервисы - это заголовки разделов; ниже в каждом разделе - команды сервиса, адреса файлов с детальным описание и краткие описания команд.
 
 
 
@@ -124,14 +134,14 @@ https://github.com/grpc/grpc/blob/master/src/csharp/README.md
 
 
 
-* Bars](https://api.finam.ru/docs/grpc/bars.md): Получение исторических данных по инструменту (агрегированные свечи)
-* LastQuote](https://api.finam.ru/docs/grpc/lastquote.md): Получение последней котировки по инструменту
-* OrderBook](https://api.finam.ru/docs/grpc/orderbook.md): Получение текущего стакана по инструменту
-* LatestTrades](https://api.finam.ru/docs/grpc/latesttrades.md): Получение списка последних сделок по инструменту
-* SubscribeQuote](https://api.finam.ru/docs/grpc/subscribequote.md): Подписка на котировки по инструменту. Стрим метод
-* SubscribeOrderBook](https://api.finam.ru/docs/grpc/subscribeorderbook.md): Подписка на стакан по инструменту. Стрим метод
-* SubscribeLatestTrades](https://api.finam.ru/docs/grpc/subscribelatesttrades.md): Подписка на сделки по инструменту. Стрим метод
-* SubscribeBars](https://api.finam.ru/docs/grpc/subscribebars.md): Подписка на агрегированные свечи. Стрим метод
+* **Bars** 					https://api.finam.ru/docs/grpc/bars.md					Получение исторических данных по инструменту (агрегированные свечи)
+* **LastQuote** 			https://api.finam.ru/docs/grpc/lastquote.md				Получение последней котировки по инструменту
+* **OrderBook**			https://api.finam.ru/docs/grpc/orderbook.md)			Получение текущего стакана по инструменту
+* **LatestTrades**			https://api.finam.ru/docs/grpc/latesttrades.md			Получение списка последних сделок по инструменту
+* **SubscribeQuote**		https://api.finam.ru/docs/grpc/subscribequote.md		Подписка на котировки по инструменту. Стрим метод
+* **SubscribeOrderBook**	https://api.finam.ru/docs/grpc/subscribeorderbook.md	Подписка на стакан по инструменту. Стрим метод
+* **SubscribeLatestTrades**	https://api.finam.ru/docs/grpc/subscribelatesttrades.md	Подписка на сделки по инструменту. Стрим метод
+* **SubscribeBars**			https://api.finam.ru/docs/grpc/subscribebars.md			Подписка на агрегированные свечи. Стрим метод
 
 
 
@@ -139,15 +149,15 @@ https://github.com/grpc/grpc/blob/master/src/csharp/README.md
 
 
 
-* Exchanges](https://api.finam.ru/docs/grpc/exchanges.md): Получение списка доступных бирж, названия и mic коды
-* Assets](https://api.finam.ru/docs/grpc/assets.md): Получение списка доступных для торговли инструментов, их описание
-* AllAssets](https://api.finam.ru/docs/grpc/allassets.md): Получение списка всех инструментов, в том числе индикативных и архивных, их описание
-* GetAsset](https://api.finam.ru/docs/grpc/getasset.md): Получение информации по конкретному инструменту
-* GetAssetParams](https://api.finam.ru/docs/grpc/getassetparams.md): Получение торговых параметров по инструменту
-* OptionsChain](https://api.finam.ru/docs/grpc/optionschain.md): Получение цепочки опционов для базового актива
-* Schedule](https://api.finam.ru/docs/grpc/schedule.md): Получение расписания торгов для инструмента
-* Clock](https://api.finam.ru/docs/grpc/clock.md): Получение времени на сервере
-* GetConstituents](https://api.finam.ru/docs/grpc/getconstituents.md): Получить состав биржевого индекса по его символу
+* **Exchanges**		https://api.finam.ru/docs/grpc/exchanges.md		Получение списка доступных бирж, названия и mic коды
+* **Assets**			https://api.finam.ru/docs/grpc/assets.md			Получение списка доступных для торговли инструментов, их описание
+* **AllAssets**			https://api.finam.ru/docs/grpc/allassets.md			Получение списка всех инструментов, в том числе индикативных и архивных, их описание
+* **GetAsset**			https://api.finam.ru/docs/grpc/getasset.md)			Получение информации по конкретному инструменту
+* **GetAssetParams**]	https://api.finam.ru/docs/grpc/getassetparams.md	Получение торговых параметров по инструменту
+* **OptionsChain**		https://api.finam.ru/docs/grpc/optionschain.md		Получение цепочки опционов для базового актива
+* **Schedule**			https://api.finam.ru/docs/grpc/schedule.md			Получение расписания торгов для инструмента
+* **Clock**				https://api.finam.ru/docs/grpc/clock.md				Получение времени на сервере
+* **GetConstituents**	https://api.finam.ru/docs/grpc/getconstituents.md	Получить состав биржевого индекса по его символу
 
 
 
@@ -155,7 +165,7 @@ https://github.com/grpc/grpc/blob/master/src/csharp/README.md
 
 
 
-* GetUsageMetrics](https://api.finam.ru/docs/grpc/getusagemetrics.md): Получение текущих метрик использования для пользователя
+* **GetUsageMetrics**	https://api.finam.ru/docs/grpc/getusagemetrics.md	Получение текущих метрик использования для пользователя
 
 
 
@@ -163,9 +173,9 @@ https://github.com/grpc/grpc/blob/master/src/csharp/README.md
 
 
 
-* CreateAccountReport](https://api.finam.ru/docs/grpc/createaccountreport.md): Запустить генерацию отчета по счету за период
-* GetAccountReportInfo]https://api.finam.ru(/docs/grpc/getaccountreportinfo.md): Получение информации о результате генерации отчета по счету
-* SubscribeAccountReportInfo](https://api.finam.ru/docs/grpc/subscribeaccountreportinfo.md): Подписка на информацию о результатах генерации отчета по счету. Стрим метод
+* **CreateAccountReport**			https://api.finam.ru/docs/grpc/createaccountreport.md		Запустить генерацию отчета по счету за период
+* **GetAccountReportInfo**			https://api.finam.ru(/docs/grpc/getaccountreportinfo.md		Получение информации о результате генерации отчета по счету
+* **SubscribeAccountReportInfo**	https://api.finam.ru/docs/grpc/subscribeaccountreportinfo.md	Подписка на информацию о результатах генерации отчета по счету. Стрим метод
 
 
 
@@ -173,10 +183,10 @@ https://github.com/grpc/grpc/blob/master/src/csharp/README.md
 
 
 
-* GetFutureSplits](https://api.finam.ru/docs/grpc/getfuturesplits.md): Получить предстоящие события сплитов по инструменту
-* GetPastSplits](https://api.finam.ru/docs/grpc/getpastsplits.md): Получить историю сплитов по инструменту
-* GetFutureDividends](https://api.finam.ru/docs/grpc/getfuturedividends.md): Получить список предстоящих (будущих) дивидендных выплат по инструменту.
-* GetPastDividends](https://api.finam.ru/docs/grpc/getpastdividends.md): Получить исторические данные по выплаченным дивидендам инструмента
+* **GetFutureSplits**		https://api.finam.ru/docs/grpc/getfuturesplits.md		Получить предстоящие события сплитов по инструменту
+* **GetPastSplits**			https://api.finam.ru/docs/grpc/getpastsplits.md		Получить историю сплитов по инструменту
+* **GetFutureDividends**	https://api.finam.ru/docs/grpc/getfuturedividends.md	Получить список предстоящих (будущих) дивидендных выплат по инструменту.
+* **GetPastDividends**		https://api.finam.ru/docs/grpc/getpastdividends.md	Получить исторические данные по выплаченным дивидендам инструмента
 
 
 
@@ -184,8 +194,9 @@ https://github.com/grpc/grpc/blob/master/src/csharp/README.md
 
 
 
-* Tokens](https://api.finam.ru/tokens.md): API token management
-* 
+* **Tokens**	https://api.finam.ru/tokens.md	API token management
+
+
 
 
 
