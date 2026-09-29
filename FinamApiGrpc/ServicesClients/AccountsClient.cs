@@ -1,6 +1,6 @@
-﻿using Google.Protobuf.WellKnownTypes;
+﻿using Grpc.Core;
 using Google.Type;
-using Grpc.Core;
+using Google.Protobuf.WellKnownTypes;
 using Grpc.Tradeapi.V1.Accounts;
 
 using FinamApiGrpc.Streams;
@@ -18,11 +18,7 @@ public class AccountsClient : AccountsService.AccountsServiceClient, IDisposable
     private readonly ServerStreamingLoop<GetAccountRequest, GetAccountResponse> _subscriptionStreamLoop;
     #endregion
 
-    public AccountsClient(
-        CallInvoker invoker,
-        int reconnectBaseDelaySeconds = 2,
-        int reconnectMaxDelaySeconds = 65,
-        int? maxReconnectAttempts = null) : base(invoker)
+    public AccountsClient(CallInvoker invoker, int reconnectBaseDelaySeconds = 2, int reconnectMaxDelaySeconds = 65, int? maxReconnectAttempts = null) : base(invoker)
     {
         _streamReconnectPolicy = new StreamReconnectPolicy
         {

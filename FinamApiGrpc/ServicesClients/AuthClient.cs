@@ -1,7 +1,8 @@
-﻿using FinamApiGrpc.Streams;
-using Grpc.Core;
+﻿using Grpc.Core;
 using Grpc.Tradeapi.V1.Auth;
 using Auth = Grpc.Tradeapi.V1.Auth;
+
+using FinamApiGrpc.Streams;
 
 namespace FinamApiGrpc.ServicesClients;
 

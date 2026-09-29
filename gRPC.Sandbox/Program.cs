@@ -2,9 +2,9 @@
 using Google.Type;
 using Grpc.Tradeapi.V1.Accounts;
 using Grpc.Tradeapi.V1.Auth;
-using Microsoft.Extensions.Configuration;
-//using Microsoft.VisualBasic;
 using static Grpc.Tradeapi.V1.Auth.MDPermission.Types;
+
+using Microsoft.Extensions.Configuration;
 
 internal class Program
 {
@@ -85,7 +85,7 @@ internal class Program
             Console.WriteLine("\n[Песочница] Нажатие любой клавиши - переход к получению информации по счету");
             Console.ReadKey();
             Console.WriteLine("\n[Песочница] Получаем информацию по счёту.");
-            var accountResponse = await FinamGrpcServices.AccountsService.GetAccount("143047");
+            var accountResponse = await FinamGrpcServices.AccountsService.GetAccount("115985");
             PrintAccountInformation(accountResponse);
             Console.WriteLine($"[Песочница] Получили информацию по счёту");
             #endregion
@@ -98,21 +98,21 @@ internal class Program
                 StartTime = Timestamp.FromDateTime(System.DateTime.UtcNow.AddDays(-3)),
                 EndTime = Timestamp.FromDateTime(System.DateTime.UtcNow)
             };
-            var tradesResponse = await FinamGrpcServices.AccountsService.Trades("143047", limit: 10, interval);
+            var tradesResponse = await FinamGrpcServices.AccountsService.Trades("115985", limit: 10, interval);
             PrintTradesHistory(tradesResponse);
             #endregion
             #region Получаем историю транзакций
             Console.WriteLine("\n[Песочница] Нажатие любой клавиши - переход к получению истории транзакций");
             Console.ReadKey();
             Console.WriteLine("\n[Песочница] Получаем историю транзакций.");
-            var transactionsResponse = await FinamGrpcServices.AccountsService.Transactions("143047", limit: 10);
+            var transactionsResponse = await FinamGrpcServices.AccountsService.Transactions("115985", limit: 10);
             PrintTransactionsHistory(transactionsResponse);
             #endregion
             #region Подписка на обновления аккаунта
             Console.WriteLine("\n[Песочница] Нажатие любой клавиши - переход к подписке на обновления аккаунта");
             Console.ReadKey();
             Console.WriteLine("\n[Песочница] Подписываемся на обновления аккаунта.");
-            await FinamGrpcServices.AccountsService.SubscribeAccount("143047", PrintRenewalAccountInformation);
+            await FinamGrpcServices.AccountsService.SubscribeAccount("115985", PrintRenewalAccountInformation);
             Console.WriteLine("[Песочница] Подписка активна. Нажмите любую клавишу, чтобы остановить.");
             Console.ReadKey();
             await FinamGrpcServices.AccountsService.UnsubscribeAccount();
