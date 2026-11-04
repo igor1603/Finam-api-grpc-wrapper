@@ -2,6 +2,8 @@
 using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
 using Grpc.Net.Client.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 using FinamApiGrpc.Interceptors;
 using FinamApiGrpc.ServicesClients;
@@ -22,10 +24,12 @@ public class FinamApiGrpc : IDisposable
     private readonly GrpcChannel _channel;
     // Перехвадчики запросов
     private readonly CallInvoker _invoker;
+    // Логгер библиотеки
+    private readonly ILogger _logger;
     #endregion
     #region Свойства
     /// <summary>
-    /// gwt токен получаемый в процессе авторизации. Действителен 15 минут, затем - требуется обновление.
+    /// jwt токен получаемый в процессе авторизации. Действителен 15 минут, затем - требуется обновление.
     /// </summary>
     public string? CurrentJwtToken { get; set; } = string.Empty;
 
@@ -39,13 +43,15 @@ public class FinamApiGrpc : IDisposable
     public AccountsClient AccountsService { get; init; }
     #endregion
 
-    public FinamApiGrpc(string targetUrl, string secretKey, string sourceAppId)
+    public FinamApiGrpc(string targetUrl, string secretKey, string sourceAppId, ILogger? logger = null)
     {
         #region Проверка входных параметров
         _targetUrl = targetUrl ?? throw new ArgumentNullException(nameof(targetUrl));
         _secretKey = secretKey ?? throw new ArgumentNullException(nameof(secretKey));
         _sourceAppId = sourceAppId ?? throw new ArgumentNullException(nameof(sourceAppId));
         #endregion
+
+        _logger = logger ?? NullLogger.Instance;
 
         #region Настраиваем политику автоматических повторов (Retry Policy) для Unary-запросов
         var methodConfig = new MethodConfig
