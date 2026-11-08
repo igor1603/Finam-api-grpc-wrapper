@@ -41,6 +41,11 @@ public class FinamApiGrpc : IDisposable
     /// Сервис счетов 
     /// </summary>
     public AccountsClient AccountsService { get; init; }
+
+    /// <summary>
+    /// Сервис торговых заявок
+    /// </summary>
+    public OrdersClient OrdersService { get; init; }
     #endregion
 
     public FinamApiGrpc(string targetUrl, string secretKey, string sourceAppId, ILogger? logger = null)
@@ -49,10 +54,8 @@ public class FinamApiGrpc : IDisposable
         _targetUrl = targetUrl ?? throw new ArgumentNullException(nameof(targetUrl));
         _secretKey = secretKey ?? throw new ArgumentNullException(nameof(secretKey));
         _sourceAppId = sourceAppId ?? throw new ArgumentNullException(nameof(sourceAppId));
-        #endregion
-
         _logger = logger ?? NullLogger.Instance;
-
+       #endregion
         #region Настраиваем политику автоматических повторов (Retry Policy) для Unary-запросов
         var methodConfig = new MethodConfig
         {
@@ -75,9 +78,9 @@ public class FinamApiGrpc : IDisposable
         #endregion
 
         #region Инициализируем перехвадчики и связываем их с каналом
-        var exceptionHandlingInterceptor = new ExceptionHandlingInterceptor();
-        var logInterceptor = new LoggingInterceptor();
-        var authInterceptor = new AuthInterceptor(() => CurrentJwtToken);
+        var exceptionHandlingInterceptor = new ExceptionHandlingInterceptor(_logger);
+        var logInterceptor = new LoggingInterceptor(_logger);
+        var authInterceptor = new AuthInterceptor(() => CurrentJwtToken, _logger);
 
         _invoker = _channel.Intercept(exceptionHandlingInterceptor).Intercept(logInterceptor).Intercept(authInterceptor);
         #endregion
@@ -85,6 +88,7 @@ public class FinamApiGrpc : IDisposable
         #region Инициализируем сервисы
         AuthService = new AuthClient(secretKey, sourceAppId, _invoker, (token) => CurrentJwtToken = token);
         AccountsService = new AccountsClient(_invoker);
+        OrdersService = new OrdersClient(_invoker, _logger);
         #endregion
     }
 

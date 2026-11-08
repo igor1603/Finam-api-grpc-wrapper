@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
+using Microsoft.Extensions.Logging;
 
 namespace FinamApiGrpc.Interceptors;
 
@@ -8,9 +9,11 @@ public class ExceptionHandlingInterceptor : Interceptor
 {
     private readonly int _maxRetryCount;
     private readonly TimeSpan _retryDelay;
+    private readonly ILogger _logger;
 
-    public ExceptionHandlingInterceptor(int maxRetryCount = 3, TimeSpan? retryDelay = null)
+    public ExceptionHandlingInterceptor(ILogger logger, int maxRetryCount = 3, TimeSpan? retryDelay = null)
     {
+        _logger = logger;
         _maxRetryCount = maxRetryCount;
         _retryDelay = retryDelay ?? TimeSpan.FromMilliseconds(200);
     }
@@ -21,7 +24,7 @@ public class ExceptionHandlingInterceptor : Interceptor
         AsyncUnaryCallContinuation<TRequest, TResponse> continuation)
     {
         var stopwatch = Stopwatch.StartNew();
-        Console.WriteLine($"[EXCEPT] Начали вызов {context.Method.FullName}");
+        _logger.LogTrace($"[EXCEPT] Начали вызов {context.Method.FullName}");
 
         var interceptedResponseTask = ExecuteWithRetryAsync(request, context, continuation, stopwatch);
 
@@ -53,14 +56,13 @@ public class ExceptionHandlingInterceptor : Interceptor
                 var response = await call.ResponseAsync;
 
                 stopwatch.Stop();
-                Console.WriteLine($"[EXCEPT] Завершили вызов {context.Method.FullName} | Длительность: {stopwatch.ElapsedMilliseconds} мс");
+                _logger.LogDebug($"[EXCEPT] Завершили вызов {context.Method.FullName} | Длительность: {stopwatch.ElapsedMilliseconds} мс");
 
                 return response;
             }
             catch (RpcException rpcEx) when (IsTransientError(rpcEx.StatusCode) && attempt < _maxRetryCount)
             {
-                Console.WriteLine(
-                    $"[EXCEPT] Повтор вызова {context.Method.FullName} | Попытка {attempt}/{_maxRetryCount} | Статус: {rpcEx.StatusCode}");
+                _logger.LogWarning($"[EXCEPT] Повтор вызова {context.Method.FullName} | Попытка {attempt}/{_maxRetryCount} | Статус: {rpcEx.StatusCode}");
 
                 await Task.Delay(_retryDelay);
             }
@@ -68,8 +70,7 @@ public class ExceptionHandlingInterceptor : Interceptor
             {
                 stopwatch.Stop();
 
-                Console.WriteLine(
-                    $"[EXCEPT] Ошибка вызова {context.Method.FullName} | Статус: {rpcEx.StatusCode} | Длительность: {stopwatch.ElapsedMilliseconds} мс | {rpcEx.Status.Detail}");
+                _logger.LogError($"[EXCEPT] Ошибка вызова {context.Method.FullName} | Статус: {rpcEx.StatusCode} | Длительность: {stopwatch.ElapsedMilliseconds} мс | {rpcEx.Status.Detail}");
 
                 throw;
             }
@@ -77,9 +78,8 @@ public class ExceptionHandlingInterceptor : Interceptor
             {
                 stopwatch.Stop();
 
-                Console.WriteLine(
-                    $"[EXCEPT] Ошибка вызова {context.Method.FullName} | Длительность: {stopwatch.ElapsedMilliseconds} мс | {ex.Message}");
-                
+                _logger.LogError($"[EXCEPT] Ошибка вызова {context.Method.FullName} | Длительность: {stopwatch.ElapsedMilliseconds} мс | {ex.Message}");
+
                 throw;
             }
         }

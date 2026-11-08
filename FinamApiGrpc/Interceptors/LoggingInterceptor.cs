@@ -1,11 +1,19 @@
 ﻿using System.Diagnostics;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
+using Microsoft.Extensions.Logging;
 
 namespace FinamApiGrpc.Interceptors;
 
 public class LoggingInterceptor : Interceptor
 {
+    private readonly ILogger _logger;
+
+    public LoggingInterceptor(ILogger logger)
+    {
+        _logger = logger;
+    }
+
     public override AsyncUnaryCall<TResponse> AsyncUnaryCall<TRequest, TResponse>(
         TRequest request,
         ClientInterceptorContext<TRequest, TResponse> context,
@@ -14,7 +22,7 @@ public class LoggingInterceptor : Interceptor
         var methodName = context.Method.FullName;
         var stopwatch = Stopwatch.StartNew();
 
-        Console.WriteLine($"[LOG] Начали вызов {methodName}");
+        _logger.LogTrace($"[LOG] Начали вызов {methodName}");
 
         var call = continuation(request, context);
 
@@ -38,15 +46,14 @@ public class LoggingInterceptor : Interceptor
             var response = await responseTask;
             stopwatch.Stop();
 
-            Console.WriteLine($"[LOG] Завершили вызов {methodName} | Длительность: {stopwatch.ElapsedMilliseconds} мс");
+            _logger.LogDebug($"[LOG] Завершили вызов {methodName} | Длительность: {stopwatch.ElapsedMilliseconds} мс");
             return response;
         }
         catch (RpcException rpcEx)
         {
             stopwatch.Stop();
 
-            Console.WriteLine(
-                $"[LOG] Ошибка вызова {methodName} | Статус: {rpcEx.StatusCode} | Длительность: {stopwatch.ElapsedMilliseconds} мс | {rpcEx.Status.Detail}");
+            _logger.LogError($"[LOG] Ошибка вызова {methodName} | Статус: {rpcEx.StatusCode} | Длительность: {stopwatch.ElapsedMilliseconds} мс | {rpcEx.Status.Detail}");
 
             throw;
         }
@@ -54,8 +61,7 @@ public class LoggingInterceptor : Interceptor
         {
             stopwatch.Stop();
 
-            Console.WriteLine(
-                $"[LOG] Ошибка вызова {methodName} | Длительность: {stopwatch.ElapsedMilliseconds} мс | {ex.Message}");
+            _logger.LogError($"[LOG] Ошибка вызова {methodName} | Длительность: {stopwatch.ElapsedMilliseconds} мс | {ex.Message}");
 
             throw;
         }

@@ -1,5 +1,6 @@
 ﻿using Grpc.Core;
 using Grpc.Core.Interceptors;
+using Microsoft.Extensions.Logging;
 
 namespace FinamApiGrpc.Interceptors;
 
@@ -10,10 +11,12 @@ namespace FinamApiGrpc.Interceptors;
 public class AuthInterceptor : Interceptor
 {
     private readonly Func<string?> _getJwtTokenFunc;
+    private readonly ILogger _logger;
 
-    public AuthInterceptor(Func<string?> getJwtTokenFunc)
+    public AuthInterceptor(Func<string?> getJwtTokenFunc, ILogger logger)
     {
         _getJwtTokenFunc = getJwtTokenFunc ?? throw new ArgumentNullException(nameof(getJwtTokenFunc));
+        _logger = logger;
     }
 
     public override AsyncUnaryCall<TResponse> AsyncUnaryCall<TRequest, TResponse>(
@@ -70,7 +73,7 @@ public class AuthInterceptor : Interceptor
 
         if (string.IsNullOrEmpty(currentToken))
         {
-            Console.WriteLine($"[AUTH] JWT-токен отсутствует для вызова {methodName}");
+            _logger.LogWarning($"[AUTH] JWT-токен отсутствует для вызова {methodName}");
             throw new InvalidOperationException(
                 $"Критическая ошибка SDK: попытка вызова метода '{methodName}' без предварительного получения JWT-токена.");
         }
@@ -80,7 +83,7 @@ public class AuthInterceptor : Interceptor
 
         var newOptions = context.Options.WithHeaders(metadata);
 
-        Console.WriteLine($"[AUTH] Добавлен заголовок Authorization для {methodName}");
+        _logger.LogTrace($"[AUTH] Добавлен заголовок Authorization для {methodName}");
 
         return new ClientInterceptorContext<TRequest, TResponse>(context.Method, context.Host, newOptions);
     }
